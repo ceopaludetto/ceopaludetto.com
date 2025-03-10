@@ -1,0 +1,43 @@
+---
+import "@fontsource/lora/latin-500.css";
+import "@fontsource/monaspace-neon/latin-400.css";
+import "@fontsource/poppins/latin-400.css";
+import "@fontsource/poppins/latin-500.css";
+
+import Footer from "~/components/footer.astro";
+import Header from "~/components/header.astro";
+import { createThemeFromBaseColor, injectIntoRoot } from "~/utilities/theme";
+
+type Props = {
+	color: string;
+	class?: string;
+	title: string;
+};
+
+const { color, class: className, title } = Astro.props;
+
+const theme = createThemeFromBaseColor(color);
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content="A personal blog by Carlos Paludetto" />
+		<title>{title}</title>
+		<style is:global set:html={injectIntoRoot(theme)}></style>
+		<style>
+			body {
+				@apply overflow-x-hidden;
+			}
+		</style>
+	</head>
+	<body class={className}>
+		<Header />
+		<slot />
+		<Footer />
+	</body>
+</html>

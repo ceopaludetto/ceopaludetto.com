@@ -1,0 +1,144 @@
+---
+/* eslint-disable style/max-len */
+import "@shikijs/twoslash/style-rich.css";
+---
+
+<main
+	class="p-8 prose prose-ul:pl-4 prose-headings:font-serif prose-h1:text-display-small prose-h2:text-headline-medium prose-h3:text-headline-small prose-p:text-body-large prose-a:underline-offset-2 prose-a:font-normal prose-a:decoration-wavy prose-a:decoration-primary/30 hover:prose-a:decoration-primary max-w-[70ch] mx-auto"
+>
+	<slot />
+</main>
+
+<style is:global>
+	:root {
+		--astro-code-color-background: rgb(var(--surface-container-lowest) / 1);
+		--astro-code-color-text: rgb(var(--on-surface) / 1);
+		--astro-code-token-constant: rgb(var(--primary) / 1);
+		--astro-code-token-string: rgb(var(--tertiary) / 1);
+		--astro-code-token-comment: rgb(var(--outline) / 1);
+		--astro-code-token-keyword: rgb(var(--primary) / 1);
+		--astro-code-token-parameter: rgb(var(--on-surface) / 1);
+		--astro-code-token-function: rgb(var(--secondary) / 1);
+		--astro-code-token-string-expression: rgb(var(--tertiary) / 1);
+		--astro-code-token-punctuation: rgb(var(--secondary) / 1);
+		--astro-code-token-link: #ee0000;
+
+		--twoslash-border-color: rgb(var(--surface-container-high) / 1);
+		--twoslash-underline-color: currentColor;
+		--twoslash-highlighted-border: transparent;
+		--twoslash-highlighted-bg: rgb(var(--surface-container-high) / 1);
+		--twoslash-popup-bg: rgb(var(--surface-container-lowest) / 1);
+		--twoslash-popup-color: inherit;
+		--twoslash-popup-shadow: none;
+		--twoslash-docs-color: rgb(var(--on-surface) / 1);
+		--twoslash-docs-font: "Monaspace Neon";
+		--twoslash-code-font: inherit;
+		--twoslash-code-font-size: 0.9rem;
+		--twoslash-matched-color: inherit;
+		--twoslash-unmatched-color: rgb(var(--outline) / 1);
+		--twoslash-cursor-color: rgb(var(--primary) / 0.5);
+		--twoslash-error-color: rgb(var(--error) / 1);
+		--twoslash-error-bg: rgb(var(--error-container) / 0.5);
+		--twoslash-warn-color: rgb(var(--primary) / 1);
+		--twoslash-warn-bg: rgb(var(--primary-container) / 0.5);
+		--twoslash-tag-color: rgb(var(--secondary) / 1);
+		--twoslash-tag-bg: rgb(var(--secondary-container) / 0.5);
+		--twoslash-tag-warn-color: var(--twoslash-warn-color);
+		--twoslash-tag-warn-bg: var(--twoslash-warn-bg);
+		--twoslash-tag-annotate-color: rgb(var(--tertiary) / 1);
+		--twoslash-tag-annotate-bg: rgb(var(--tertiary-container) / 0.5);
+	}
+
+	ul li {
+		list-style-type: "▷ ";
+	}
+
+	pre.astro-code {
+		counter-reset: line;
+		tab-size: 0.5rem;
+		@apply border border-surface-container-high md:-mx-6;
+	}
+
+	pre.astro-code span.line:before {
+		counter-increment: line;
+		content: counter(line);
+		@apply inline-block text-on-surface-variant mr-3;
+	}
+
+	pre.astro-code span.line.highlighted {
+		@apply bg-surface-container-lowest;
+	}
+
+	pre.astro-code .twoslash-completion-list,
+	pre.astro-code .twoslash-tag-line,
+	pre.astro-code .twoslash-popup-container {
+		@apply !rounded-lg;
+	}
+
+	pre.astro-code .twoslash-popup-container {
+		@apply shadow-none translate-y-0 fixed;
+	}
+
+	pre.astro-code .twoslash-tag-line {
+		@apply !border-l-0;
+	}
+
+	pre.astro-code .twoslash-popup-docs {
+		font-size: var(--twoslash-code-font-size);
+	}
+
+	pre.astro-code .twoslash-popup-docs a {
+		@apply text-primary;
+	}
+
+	pre.astro-code .twoslash-popup-docs .twoslash-popup-docs-tag-name {
+		@apply text-tertiary;
+	}
+
+	pre.astro-code .twoslash-popup-docs .twoslash-popup-docs-tag-value code {
+		@apply text-secondary;
+	}
+
+	pre.astro-code .twoslash-popup-docs .twoslash-popup-docs-tag-value code::before,
+	pre.astro-code .twoslash-popup-docs .twoslash-popup-docs-tag-value code::after {
+		content: "`";
+	}
+
+	pre.astro-code .twoslash-popup-error {
+		font-size: var(--twoslash-code-font-size);
+	}
+</style>
+
+<script>
+/**
+ * Correctly move popup docs and also fixes overflow issues in code blocks
+ */
+import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
+
+async function movePopup(token: HTMLSpanElement, popup: HTMLSpanElement) {
+	const { x, y } = await computePosition(token, popup, {
+		strategy: "fixed",
+		placement: "bottom",
+		middleware: [
+			offset(8),
+			flip(),
+			shift({ padding: 8 }),
+		],
+	});
+
+	Object.assign(popup.style, { left: `${x}px`, top: `${y}px` });
+}
+
+async function main() {
+	const tokens = document.querySelectorAll<HTMLSpanElement>(".twoslash-hover");
+
+	for (const token of tokens) {
+		const popup = token.querySelector<HTMLSpanElement>(".twoslash-popup-container");
+		if (!popup) continue;
+
+		autoUpdate(token, popup, () => movePopup(token, popup));
+	}
+}
+
+main();
+</script>

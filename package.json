@@ -1,0 +1,28 @@
+{
+	"name": "@ceopaludetto/root",
+	"type": "module",
+	"private": true,
+	"packageManager": "bun@1.2.4",
+	"workspaces": [
+		"./application",
+		"./packages/*"
+	],
+	"scripts": {
+		"dev": "TURBO_UI=true turbo watch dev",
+		"build": "turbo build --cache-dir=.turbo",
+		"lint": "eslint . && sherif",
+		"lint:fix": "eslint . --fix && sherif --fix",
+		"test": "turbo test --cache-dir=.turbo"
+	},
+	"devDependencies": {
+		"@antfu/eslint-config": "^4.8.1",
+		"@total-typescript/tsconfig": "^1.0.4",
+		"@types/eslint": "^9.6.1",
+		"eslint": "^9.22.0",
+		"eslint-plugin-astro": "^1.3.1",
+		"sherif": "^1.4.0",
+		"tsup": "^8.4.0",
+		"turbo": "^2.4.4",
+		"typescript": "^5.8.2"
+	}
+}

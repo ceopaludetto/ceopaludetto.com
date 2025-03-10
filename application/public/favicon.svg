@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1000 1000" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g transform="matrix(0.910674,0,0,0.910674,6.05255,11.6756)">
+        <path d="M1036.54,289.153C1036.54,152.792 925.829,42.084 789.467,42.084L295.328,42.084C158.966,42.084 48.258,152.792 48.258,289.153L48.258,783.293C48.258,919.654 158.966,1030.36 295.328,1030.36L789.467,1030.36C925.829,1030.36 1036.54,919.654 1036.54,783.293L1036.54,289.153Z" style="fill:url(#_Radial1);"/>
+    </g>
+    <defs>
+        <radialGradient id="_Radial1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(5.60423,1028.73,-1028.73,5.60423,40.4748,32.9793)"><stop offset="0" style="stop-color:rgb(149,193,218);stop-opacity:1"/><stop offset="1" style="stop-color:rgb(37,100,137);stop-opacity:1"/></radialGradient>
+    </defs>
+</svg>

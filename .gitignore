@@ -1,0 +1,14 @@
+# Build artifacts 
+dist/
+.astro/
+.turbo/
+
+# Modules 
+node_modules/
+
+# Environment variables
+.env
+.env.production
+
+# macOS
+.DS_Store
