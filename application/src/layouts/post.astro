@@ -76,7 +76,7 @@ import "@shikijs/twoslash/style-rich.css";
 	}
 
 	pre.astro-code .twoslash-popup-container {
-		@apply shadow-none translate-y-0 fixed;
+		@apply overflow-x-auto shadow-none translate-y-0 fixed max-w-[calc(100vw-16px)];
 	}
 
 	pre.astro-code .twoslash-tag-line {
@@ -113,17 +113,13 @@ import "@shikijs/twoslash/style-rich.css";
 /**
  * Correctly move popup docs and also fixes overflow issues in code blocks
  */
-import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
+import { autoUpdate, computePosition, flip, shift } from "@floating-ui/dom";
 
 async function movePopup(token: HTMLSpanElement, popup: HTMLSpanElement) {
 	const { x, y } = await computePosition(token, popup, {
 		strategy: "fixed",
-		placement: "bottom",
-		middleware: [
-			offset(8),
-			flip(),
-			shift({ padding: 8 }),
-		],
+		placement: "bottom-start",
+		middleware: [flip(), shift({ padding: 8 })],
 	});
 
 	Object.assign(popup.style, { left: `${x}px`, top: `${y}px` });
