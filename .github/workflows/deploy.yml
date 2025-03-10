@@ -17,7 +17,7 @@ env:
 
 jobs:
   build:
-    name: Build and Upload
+    name: Upload artifacts
 
     runs-on: ubuntu-latest
 
@@ -43,7 +43,7 @@ jobs:
         run: bun run build
 
       - name: Upload static files as artifact
-        id: artifacts
+        id: deployment
         uses: actions/upload-pages-artifact@v3
         with:
           path: application/dist/
@@ -56,9 +56,9 @@ jobs:
 
     environment:
       name: github-pages
-      url: ${{ steps.artifacts.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Deploy to GitHub Pages
-        id: artifacts
+        id: deployment
         uses: actions/deploy-pages@v4
