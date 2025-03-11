@@ -1,0 +1,18 @@
+{
+	"name": "@ceopaludetto/post-expo-router-repack",
+	"type": "module",
+	"version": "0.0.0",
+	"exports": {
+		"import": "./index.mdx",
+		"require": "./index.mdx"
+	},
+	"main": "index.mdx",
+	"module": "index.mdx",
+	"files": [
+		"./index.mdx"
+	],
+	"dependencies": {
+		"expo": "^52.0.37",
+		"expo-router": "^4.0.17"
+	}
+}

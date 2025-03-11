@@ -1,0 +1,17 @@
+{
+	"name": "@ceopaludetto/post-backend-stack",
+	"type": "module",
+	"version": "0.0.0",
+	"exports": {
+		"import": "./index.mdx",
+		"require": "./index.mdx"
+	},
+	"main": "index.mdx",
+	"module": "index.mdx",
+	"files": [
+		"./index.mdx"
+	],
+	"dependencies": {
+		"@nestjs/common": "^11.0.11"
+	}
+}

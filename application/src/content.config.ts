@@ -3,7 +3,7 @@ import { glob } from "astro/loaders";
 import { parse } from "date-fns";
 
 const postCollection = defineCollection({
-	loader: glob({ pattern: "*.mdx", base: "./src/data/posts" }),
+	loader: glob({ pattern: "*/index.mdx", base: "../posts" }),
 	schema: z.object({
 		title: z.string(),
 		description: z.string(),

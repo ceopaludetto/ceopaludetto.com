@@ -5,6 +5,7 @@ My personal blog, built with:
 - Astro
 - Material You
 - Shiki + Twoslash
+- RSS Feed
 - Some markdown
 - Love
 
