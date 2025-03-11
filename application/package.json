@@ -28,6 +28,7 @@
 		"@vercel/og": "^0.6.5",
 		"astro": "^5.4.2",
 		"date-fns": "^4.1.0",
+		"lightningcss": "^1.29.2",
 		"mcu-extra": "^0.1.1",
 		"tailwindcss": "^3.4.14"
 	},

@@ -1,4 +1,7 @@
+import { fileURLToPath } from "node:url";
+
 import eslint from "@antfu/eslint-config";
+import tailwind from "eslint-plugin-tailwindcss";
 
 export default eslint(
 	{
@@ -68,5 +71,13 @@ export default eslint(
 			// Modules
 			"**/node_modules/**/*",
 		],
+	},
+	...tailwind.configs["flat/recommended"],
+	{
+		settings: {
+			tailwindcss: {
+				config: fileURLToPath(new URL("./application/tailwind.config.ts", import.meta.url)),
+			},
+		},
 	},
 );
