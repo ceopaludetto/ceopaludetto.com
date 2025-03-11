@@ -31,7 +31,7 @@ export function image({ title, theme, date }: ImageProps) {
 			style={{ backgroundColor: variableToRGB(theme["--background"]) }}
 		>
 			<div tw="flex flex-col flex-grow">
-				<h1 tw="mb-1 text-balance" style={{ ...headlineMedium, color: variableToRGB(theme["--on-background"]) }}>
+				<h1 tw="mb-1" style={{ ...headlineMedium, color: variableToRGB(theme["--on-background"]) }}>
 					{title}
 				</h1>
 				<p tw="mt-0 mb-8" style={{ ...bodyLarge, color: variableToRGB(theme["--on-surface-variant"]) }}>

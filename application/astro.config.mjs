@@ -16,6 +16,7 @@ const fonts = [
 // https://astro.build/config
 export default defineConfig({
 	site: "https://ceopaludetto.com",
+	prefetch: { prefetchAll: true },
 	integrations: [
 		mdx({
 			shikiConfig: {
