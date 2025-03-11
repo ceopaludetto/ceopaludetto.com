@@ -34,12 +34,13 @@ const canonical = `${import.meta.env.SITE}/${entry.id}`;
 
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={entry.data.title} />
-		<meta property="twitter:description" content={entry.data.description} />
+		<meta name="twitter:description" content={entry.data.description} />
 		<meta name="twitter:image" content={image} />
+		<meta name="twitter:creator" content="@ceopaludetto" />
 	</Fragment>
 	<Post>
 		<h1 class="mb-1">{entry.data.title}</h1>
-		<p class="text-on-surface-variant text-body-large mt-0 mb-8">{formatDate(entry.data.date, "MMMM d, yyyy")}</p>
+		<p class="mb-8 mt-0 text-body-large text-on-surface-variant">{formatDate(entry.data.date, "MMMM d, yyyy")}</p>
 		<Content />
 	</Post>
 </Base>

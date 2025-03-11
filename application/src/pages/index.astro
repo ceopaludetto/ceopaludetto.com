@@ -10,12 +10,11 @@ const posts = (await getCollection("posts", ({ data }) => import.meta.env.DEV ||
 ---
 
 <Base title="ceo — A blog by Carlos Paludetto" color="#0ea5e9">
-	<meta slot="meta" name="description" content="A personal blog by Carlos Paludetto" />
-	<main class="max-w-[70ch] mx-auto py-8 px-4 lg:px-8 gap-y-10 flex flex-col">
+	<main class="mx-auto flex max-w-[70ch] flex-col gap-y-10 px-4 py-8 lg:px-8">
 		<div class="flex flex-col gap-y-6">
 			{posts.map((entry) => (
-				<a class="inline-flex flex-col group" href={`/${entry.id}`}>
-					<span class="group-hover:text-primary text-headline-medium font-serif mb-1">{entry.data.title}</span>
+				<a class="group inline-flex flex-col" href={`/${entry.id}`}>
+					<span class="mb-1 font-serif text-headline-medium group-hover:text-primary">{entry.data.title}</span>
 					<span class="text-label-large text-on-surface-variant">{format(entry.data.date, "MMMM d, yyyy")}</span>
 				</a>
 			))}

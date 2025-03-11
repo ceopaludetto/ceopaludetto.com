@@ -1,4 +1,5 @@
 import { argbFromHex, rgbaFromArgb } from "@material/material-color-utilities";
+import { transform } from "lightningcss";
 import { themeFromSourceColor } from "mcu-extra";
 
 type ColorScheme = "dark" | "light";
@@ -34,7 +35,7 @@ export function injectIntoRoot(variables: ReturnType<typeof createThemeFromBaseC
 			.join("\n");
 	}
 
-	return `
+	const code = `
 	:root {
 		${createRootString(variables.light)}
 	}
@@ -48,6 +49,7 @@ export function injectIntoRoot(variables: ReturnType<typeof createThemeFromBaseC
 	body {
 		background-color: rgb(var(--background) / 1); 
 		color: rgb(var(--on-background) / 1);
+		overflow-x: hidden;
 	}
 
 	*::selection {
@@ -55,4 +57,7 @@ export function injectIntoRoot(variables: ReturnType<typeof createThemeFromBaseC
 		color: rgb(var(--on-tertiary) / 1);
 	}
 	`;
+
+	// eslint-disable-next-line node/prefer-global/buffer
+	return transform({ filename: "index.css", code: Buffer.from(code), minify: true }).code;
 }
