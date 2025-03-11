@@ -10,18 +10,22 @@
 		"start": "astro dev"
 	},
 	"peerDependencies": {
-		"@nestjs/common": "^11.0.11"
+		"@nestjs/common": "^11.0.11",
+		"expo": "^52.0.37",
+		"expo-router": "^4.0.17"
 	},
 	"dependencies": {
 		"@astrojs/mdx": "^4.1.0",
 		"@astrojs/sitemap": "^3.2.1",
 		"@astrojs/tailwind": "^5.1.2",
+		"@ceopaludetto/image": "workspace:*",
 		"@floating-ui/dom": "^1.6.13",
 		"@fontsource/lora": "^5.2.5",
 		"@fontsource/monaspace-neon": "^5.2.5",
 		"@fontsource/poppins": "^5.2.5",
 		"@material/material-color-utilities": "^0.3.0",
 		"@tailwindcss/typography": "^0.5.16",
+		"@vercel/og": "^0.6.5",
 		"astro": "^5.4.2",
 		"date-fns": "^4.1.0",
 		"mcu-extra": "^0.1.1",
