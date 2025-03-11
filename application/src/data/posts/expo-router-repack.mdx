@@ -1,0 +1,194 @@
+---
+title: "How do I combine @callstack/repack with expo-router"
+description: "Making react native more enjoyable"
+date: "2025-03-11"
+color: "#00FF9B"
+draft: false 
+---
+
+Recently I migrated a React Native application to [@callstack/repack](https://re-pack.dev/). I wanted to take advantage of the performance and unique features that rspack had to offer, such as support for virtual modules and greater control over the bundle. However, I didn't want to abandon the benefits that expo brings to a React Native application, in my case the [CNG](https://docs.expo.dev/workflow/continuous-native-generation/) and [expo-router](https://docs.expo.dev/router/introduction/).
+
+So I wrote this article to show how I integrated repack with expo and expo-router, ensuring that both development and production workflows work as expected.
+
+## Fixing the development workflow
+
+The first thing I did was to stop using `@expo/cli`. Since it runs Metro at undesired moments (e.g. before native build in release mode), I needed to ensure that I would only use the React Native CLI. Therefore, I changed the scripts in `package.json` to the following:
+
+```json
+"scripts": {
+	"start": "react-native start --reset-cache",
+	"android": "react-native run-android --no-packager",
+	"ios": "react-native run-ios --no-packager --simulator \"iPhone 16 Pro\"",
+	"bundle:ios": "react-native bundle --platform ios --entry-file src/index.ts --dev false",
+	"bundle:android": "react-native bundle --platform android --entry-file src/index.ts --dev false"
+}
+```
+
+When we execute the `expo prebuild` command, expo replaces the android and iOS scripts with `expo run (android|ios)`, assuming this is the initial setup for CNG. To keep the correct command, add a flag, in this case, I added `--no-packager`.
+
+In development, expo also replaces the JS Bundle URL, changing it from `index` to `.expo/.virtual-metro-entry`. This breaks development since repack only exposes the bundle via `http://localhost:8081/index` ([#906](https://github.com/callstack/repack/issues/906)). To fix this, I've created an [expo configuration plugin](https://docs.expo.dev/guides/config-plugins/) that changes the bundle URL back to `index`:
+
+```ts
+import type { ConfigPlugin } from "expo/config-plugins";
+
+import { withAppDelegate, withMainApplication } from "expo/config-plugins";
+
+const plugin: ConfigPlugin = (expo) => {
+	let res = expo;
+
+	// iOS
+	res = withAppDelegate(res, async (configuration) => {
+		const appDelegate = configuration.modResults.contents;
+		configuration.modResults.contents = appDelegate.replace(".expo/.virtual-metro-entry", "index");
+
+		return configuration;
+	});
+
+	// Android
+	res = withMainApplication(res, async (configuration) => {
+		const mainApplication = configuration.modResults.contents;
+		configuration.modResults.contents = mainApplication.replace(".expo/.virtual-metro-entry", "index");
+
+		return configuration;
+	});
+
+	return res;
+};
+
+export default plugin;
+```
+
+Now, when we execute the development workflow:
+
+- `bun expo prebuild`
+- `bun run ios`
+- `bun run start`
+
+Everything works as expected.
+
+## Fixing the production workflow
+
+In the production workflow we want to ensure that repack is used in release builds, for this we need to include two more modifications in the expo configuration plugin in order to replace `@expo/cli`:
+
+```ts
+import type { ExpoConfig } from "expo/config";
+
+import { withXcodeProject, withAppBuildGradle } from "expo/config-plugins";
+
+let res!: ExpoConfig
+// ---cut-before---
+// iOS
+res = withXcodeProject(res, async (configuration) => {
+	const xcodeProject = configuration.modResults;
+	const bundleReactNativeCodeAndImagesBuildPhase = xcodeProject.buildPhaseObject(
+		"PBXShellScriptBuildPhase",
+		"Bundle React Native code and images",
+	);
+
+	if (!bundleReactNativeCodeAndImagesBuildPhase)
+		return configuration;
+
+	const script = JSON.parse(bundleReactNativeCodeAndImagesBuildPhase.shellScript);
+	const patched = script
+		.replace(/if \[\[ -z "\$CLI_PATH" \]\]; then[\s\S]*?fi\n?/g, `export CLI_PATH="$("$NODE_BINARY" --print "require('path').dirname(require.resolve('@react-native-community/cli/package.json')) + '/build/bin.js'")"`)
+		.replace(/if \[\[ -z "\$BUNDLE_COMMAND" \]\]; then[\s\S]*?fi\n?/g, "");
+
+	bundleReactNativeCodeAndImagesBuildPhase.shellScript = JSON.stringify(patched);
+	return configuration;
+});
+
+// Android
+res = withAppBuildGradle(res, async (configuration) => {
+	const buildGradle = configuration.modResults.contents;
+	const patched = buildGradle.replace(/cliFile.*/, "").replace(/bundleCommand.*/, "bundleCommand = \"bundle\"");
+
+	configuration.modResults.contents = patched;
+	return configuration;
+});
+```
+
+Now, when we execute the production workflow:
+
+- `bun expo prebuild`
+- `bun run ios --mode Release`
+
+Everything works as expected.
+
+## Integrating expo-router
+
+To integrate `expo-router`, we need to ensure that the environment variables are correctly set. In the `rspack.config.mjs` file, we need to add a `DefinePlugin` that sets the environment variables:
+
+```js
+new DefinePlugin({
+	"process.env.EXPO_BASE_URL": JSON.stringify(""),
+	"process.env.EXPO_OS": JSON.stringify(platform),
+	"process.env.EXPO_PROJECT_ROOT": JSON.stringify(resolve(".")),
+	"process.env.EXPO_ROUTER_ABS_APP_ROOT": JSON.stringify(resolve("./src/screens")),
+	"process.env.EXPO_ROUTER_APP_ROOT": JSON.stringify("~/screens"),
+	"process.env.EXPO_ROUTER_IMPORT_MODE": JSON.stringify("sync"),
+})
+```
+
+- `EXPO_BASE_URL`: The base URL of the application. (usually empty)
+- `EXPO_OS`: The platform that the application is running on. (you can use [@callstack/repack-plugin-expo-modules](https://re-pack.dev/docs/guides/expo-modules) which does this automatically)
+- `EXPO_PROJECT_ROOT`: The absolute path to the root of the project.
+- `EXPO_ROUTER_ABS_APP_ROOT`: The absolute path to the routes directory.
+- `EXPO_ROUTER_APP_ROOT`: The relative path to the routes directory.
+- `EXPO_ROUTER_IMPORT_MODE`: The import mode of the routes. (sync or lazy)
+
+After that, we need to manually create the `require.context` function that `expo-router` uses to load the routes.
+
+```ts
+// @filename env.d.ts
+declare namespace NodeJS {
+	interface Require {
+		context(
+			request: string,
+			includeSubdirectories?: boolean,
+			filter?: RegExp,
+			mode?: "sync" | "eager" | "weak" | "lazy" | "lazy-once"
+		): any;
+	}
+}
+
+declare var require: NodeJS.Require;
+
+declare var process : {
+	env: {
+		EXPO_ROUTER_APP_ROOT: string;
+		EXPO_ROUTER_IMPORT_MODE?: "sync" | "eager" | "weak" | "lazy" | "lazy-once";
+	};
+};
+
+// @filename context.ts
+// ---cut-before---
+export const context = require.context(
+	process.env.EXPO_ROUTER_APP_ROOT,
+	true,
+	/^\.\/(?!(?:.*\+api|\+html)\.[tj]sx?$).*\.[tj]sx?$/,
+	process.env.EXPO_ROUTER_IMPORT_MODE ?? "sync",
+);
+```
+
+And now we create our root component:
+
+```tsx
+// @filename: context.ts
+export const context: any = "";
+// @filename: Application.tsx
+// ---cut-before---
+// @jsx: react-jsx
+import { ExpoRoot } from "expo-router";
+
+import { context } from "./context";
+
+export function Application() {
+	return <ExpoRoot context={context as any} /> 
+}
+```
+
+Now we have a fully integrated `expo-router` with `@callstack/repack`!
+
+## Conclusion
+
+In this article, I showed how to integrate `@callstack/repack` with `expo` and `expo-router`. I hope this article helps you to make your React Native development more enjoyable. Keep in mind that this solution is not perfect and may have some issues, but it's a good starting point.

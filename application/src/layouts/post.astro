@@ -4,7 +4,7 @@ import "@shikijs/twoslash/style-rich.css";
 ---
 
 <main
-	class="p-8 prose prose-ul:pl-4 prose-headings:font-serif prose-h1:text-display-small prose-h2:text-headline-medium prose-h3:text-headline-small prose-p:text-body-large prose-a:underline-offset-2 prose-a:font-normal prose-a:decoration-wavy prose-a:decoration-primary/30 hover:prose-a:decoration-primary max-w-[70ch] mx-auto"
+	class="py-8 px-4 lg:px-8 prose prose-ul:pl-4 prose-headings:font-serif prose-h1:text-display-small prose-h2:text-headline-medium prose-h3:text-headline-small prose-p:text-body-large prose-a:underline-offset-2 prose-a:font-normal prose-a:decoration-wavy prose-a:decoration-primary/30 hover:prose-a:decoration-primary max-w-[70ch] mx-auto"
 >
 	<slot />
 </main>
@@ -59,10 +59,10 @@ import "@shikijs/twoslash/style-rich.css";
 		@apply border border-surface-container-high md:-mx-6;
 	}
 
-	pre.astro-code span.line:before {
+	pre.astro-code span.line::before {
 		counter-increment: line;
 		content: counter(line);
-		@apply inline-block text-on-surface-variant mr-3;
+		@apply inline-block text-on-surface-variant w-5 mr-3;
 	}
 
 	pre.astro-code span.line.highlighted {
@@ -79,11 +79,19 @@ import "@shikijs/twoslash/style-rich.css";
 		@apply overflow-x-auto shadow-none translate-y-0 fixed max-w-[calc(100vw-16px)];
 	}
 
+	pre.astro-code .twoslash-hover {
+		counter-reset: line;
+	}
+
 	pre.astro-code .twoslash-tag-line {
 		@apply !border-l-0;
 	}
 
-	pre.astro-code .twoslash-popup-docs {
+	pre.astro-code .twoslash-popup-code span.line::before {
+		content: none;
+	}
+
+	pre.astro-code .twoslash-popup-docs, pre.astro-code .twoslash-popup-code  {
 		font-size: var(--twoslash-code-font-size);
 	}
 

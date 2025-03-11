@@ -1,0 +1,46 @@
+---
+import type { InferGetStaticPropsType } from "astro";
+
+import { getCollection, render } from "astro:content";
+import { formatDate } from "date-fns";
+
+import Base from "~/layouts/base.astro";
+import Post from "~/layouts/post.astro";
+
+export async function getStaticPaths() {
+	return (await getCollection("posts", ({ data }) => import.meta.env.DEV || !data.draft))
+		.map((entry) => ({ params: { id: entry.id }, props: { entry } }));
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+
+const image = `${import.meta.env.SITE}/${entry.id}/image.png`;
+const canonical = `${import.meta.env.SITE}/${entry.id}`;
+---
+
+<Base title={`${entry.data.title} — ceo`} color={entry.data.color}>
+	<Fragment slot="meta">
+		<meta name="description" content={entry.data.description} />
+		<link rel="canonical" href={canonical} />
+
+		<meta property="og:title" content={entry.data.title} />
+		<meta property="og:description" content={entry.data.description} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:image" content={image} />
+		<meta property="og:type" content="article" />
+
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={entry.data.title} />
+		<meta property="twitter:description" content={entry.data.description} />
+		<meta name="twitter:image" content={image} />
+	</Fragment>
+	<Post>
+		<h1 class="mb-1">{entry.data.title}</h1>
+		<p class="text-on-surface-variant text-body-large mt-0 mb-8">{formatDate(entry.data.date, "MMMM d, yyyy")}</p>
+		<Content />
+	</Post>
+</Base>
+

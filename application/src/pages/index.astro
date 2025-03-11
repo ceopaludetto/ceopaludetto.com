@@ -10,7 +10,8 @@ const posts = (await getCollection("posts", ({ data }) => import.meta.env.DEV ||
 ---
 
 <Base title="ceo — A blog by Carlos Paludetto" color="#0ea5e9">
-	<main class="max-w-[70ch] mx-auto p-8 gap-y-10 flex flex-col">
+	<meta slot="meta" name="description" content="A personal blog by Carlos Paludetto" />
+	<main class="max-w-[70ch] mx-auto py-8 px-4 lg:px-8 gap-y-10 flex flex-col">
 		<div class="flex flex-col gap-y-6">
 			{posts.map((entry) => (
 				<a class="inline-flex flex-col group" href={`/${entry.id}`}>
