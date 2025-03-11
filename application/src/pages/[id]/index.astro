@@ -6,6 +6,7 @@ import { formatDate } from "date-fns";
 
 import Base from "~/layouts/base.astro";
 import Post from "~/layouts/post.astro";
+import { collectDependenciesFromPost } from "~/utilities/dependencies";
 
 export async function getStaticPaths() {
 	return (await getCollection("posts", ({ data }) => import.meta.env.DEV || !data.draft))
@@ -19,6 +20,8 @@ const { Content } = await render(entry);
 
 const image = `${import.meta.env.SITE}/${entry.id}/image.png`;
 const canonical = `${import.meta.env.SITE}/${entry.id}`;
+
+const dependencies = await collectDependenciesFromPost(entry);
 ---
 
 <Base title={`${entry.data.title} — ceo`} color={entry.data.color}>
@@ -42,6 +45,18 @@ const canonical = `${import.meta.env.SITE}/${entry.id}`;
 		<h1 class="mb-1">{entry.data.title}</h1>
 		<p class="mb-8 mt-0 text-body-large text-on-surface-variant">{formatDate(entry.data.date, "MMMM d, yyyy")}</p>
 		<Content />
+		<h3>Dependency map</h3>
+		{dependencies.length > 0 && (
+			<div class="-mx-4 flex gap-x-3 overflow-x-auto px-4">
+				{dependencies.map(([dependency, version]) => (
+					// eslint-disable-next-line style/max-len
+					<span class="inline-flex h-8 items-center text-nowrap rounded-md bg-secondary-container px-2 font-mono text-label-large text-on-secondary-container">
+						{dependency}@{version}
+					</span>
+				))}
+			</div>
+		)}
+		<hr />
 	</Post>
 </Base>
 
