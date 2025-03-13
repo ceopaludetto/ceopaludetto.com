@@ -1,0 +1,17 @@
+{
+	"name": "@ceopaludetto/post-my-blog",
+	"type": "module",
+	"version": "0.0.0",
+	"exports": {
+		"import": "./index.mdx",
+		"require": "./index.mdx"
+	},
+	"main": "index.mdx",
+	"module": "index.mdx",
+	"files": [
+		"./index.mdx"
+	],
+	"dependencies": {
+		"@material/material-color-utilities": "^0.3.0"
+	}
+}

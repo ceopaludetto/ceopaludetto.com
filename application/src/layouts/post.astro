@@ -55,7 +55,7 @@ import "@shikijs/twoslash/style-rich.css";
 
 	pre.astro-code {
 		counter-reset: line;
-		tab-size: 0.5rem;
+		tab-size: 2;
 		@apply border border-surface-container-high md:-mx-6;
 	}
 
@@ -76,7 +76,7 @@ import "@shikijs/twoslash/style-rich.css";
 	}
 
 	pre.astro-code .twoslash-popup-container {
-		@apply overflow-x-auto shadow-none translate-y-0 fixed max-w-[calc(100vw-16px)];
+		@apply overflow-x-auto shadow-none translate-y-0 max-w-[calc(100vw-16px)];
 	}
 
 	pre.astro-code .twoslash-hover {
@@ -130,18 +130,23 @@ async function movePopup(token: HTMLSpanElement, popup: HTMLSpanElement) {
 		middleware: [flip(), shift({ padding: 8 })],
 	});
 
-	Object.assign(popup.style, { left: `${x}px`, top: `${y}px` });
+	Object.assign(popup.style, { left: `${x}px`, top: `${y}px`, position: "fixed" });
 }
 
-async function main() {
-	const tokens = document.querySelectorAll<HTMLSpanElement>(".twoslash-hover");
+function queryTokenAndPopup(tokenSelector: string, hoverSelector: string) {
+	const tokens = document.querySelectorAll<HTMLSpanElement>(tokenSelector);
 
 	for (const token of tokens) {
-		const popup = token.querySelector<HTMLSpanElement>(".twoslash-popup-container");
+		const popup = token.querySelector<HTMLSpanElement>(hoverSelector);
 		if (!popup) continue;
 
 		autoUpdate(token, popup, () => movePopup(token, popup));
 	}
+}
+
+async function main() {
+	queryTokenAndPopup(".twoslash-hover", ".twoslash-popup-container");
+	queryTokenAndPopup(".twoslash-completion-cursor", ".twoslash-completion-list");
 }
 
 main();
