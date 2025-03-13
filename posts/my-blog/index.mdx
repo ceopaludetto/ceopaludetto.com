@@ -1,0 +1,60 @@
+---
+title: "Designing my own blog"
+description: "Making react native more enjoyable"
+date: "2025-03-13"
+color: "#8e51ff"
+draft: true 
+---
+
+Developing a blog can be a very fun and challenging task. After all, it is necessary to think about various aspects, such as the project architecture, the choice of technologies, design, usability, among others. In this post, I will share a bit of my experience developing my own blog.
+
+## Technologies
+
+The first decision I made was the choice of technologies to be used in the project. Since I wanted something really performant and modern, I chose to use [Astro](https://astro.build/), a framework for static sites with great DX and performance.
+
+I wanted something personal and for each post to have a different color, so I used the Material Design 3 color algorithm to generate a unique palette for each post.
+
+I also wanted the code snippets to have syntax highlighting, so I used [Shiki](https://shiki.style/) for that.
+
+## Design
+
+For the design, I was inspired by several blogs that I like, such as [Overreacted](https://overreacted.io/) by Dan Abramov and [Kent C. Dodds](https://kentcdodds.com/). I wanted something minimalist, without search bars or categories, just a list of posts.
+
+### Fonts
+
+I chose the following fonts for the blog:
+
+- [Poppins](https://fonts.google.com/specimen/Poppins) for the body text
+- [Lora](https://fonts.google.com/specimen/Lora) for the titles
+- [Monaspace Neon](https://monaspace.githubnext.com/) for the code snippets
+
+Monaspace Neon is the font I use in my code editors, so I thought it would be nice to maintain consistency. Besides, it is a font that helps me stay focused and concentrated during the reading of extensive codes.
+
+### Colors
+
+As I mentioned earlier, each post has a unique color. For this, I used the Material Design 3 color algorithm. Google provides a package called [@material/material-color-utilities](https://github.com/material-foundation/material-color-utilities/tree/main/typescript), this package is capable of generating a color scheme from a base color. The base color is the main color of the post, and the other colors are generated from it.
+
+```ts
+import { argbFromHex, themeFromSourceColor } from "@material/material-color-utilities";
+
+const theme = themeFromSourceColor(argbFromHex("#8E51FF")); // Color of the post 
+const primaryColor = theme.schemes.dark.primary;
+```
+
+## Project structure
+
+The project is divided into several packages, in a monorepo structure that uses [Turbo](https://turbo.build/) to orchestrate the builds. The project structure is as follows:
+
+
+```sh
+application/ # Astro application 
+packages/
+	image/ # Package to generate open graph images 
+	twoslash/ # Package to render jsdoc comments correctly 
+posts/
+	my-blog/ # This post 
+	...
+turbo.json # Turbo configuration file 
+```
+
+Each post is also a package, the idea of doing this is to ensure that there are no additional dependencies in the Astro project, and that each post is independent. This way I also guarantee that the posts have locked dependencies and that they are timeless.
