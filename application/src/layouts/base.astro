@@ -51,6 +51,8 @@ const rss = `${canonical}/rss.xml`;
 		</slot>
 		<title>{title}</title>
 		<style set:html={injectIntoRoot(theme)}></style>
+		<!-- Add support to https://docs.onedollarstats.com/get-started -->
+		{import.meta.env.PROD && <script defer src="https://assets.onedollarstats.com/stonks.js" />}
 	</head>
 	<body class={className}>
 		<Header />
