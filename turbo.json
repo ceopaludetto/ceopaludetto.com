@@ -8,6 +8,7 @@
 			"cache": false
 		},
 		"build": {
+			"inputs": ["./src/**/*", "../posts/**/*"],
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**"]
 		},
