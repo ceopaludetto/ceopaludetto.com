@@ -1,0 +1,299 @@
+---
+title: "Using Rust for intensive processing in JavaScript applications"
+description: ""
+date: "2025-03-12"
+color: "#E45928"
+draft: true
+---
+
+JavaScript is a great language for various tasks, offering a rich ecosystem, excellent DX, and satisfactory performance for most applications. However, there are cases where we need superior performance, such as in image processing tasks, data manipulation, or intensive mathematical calculations. In these cases, we can turn to Rust, a programming language known for its safety and performance.
+
+Thanks to the [Node API](https://nodejs.org/api/n-api.html) (formerly N-API) and [NAPI-RS](https://napi.rs/), we can easily integrate Rust code into our JavaScript applications. [NAPI-RS](https://napi.rs/) is a library that simplifies the creation of bindings between Rust and Node.js, allowing you to write high-performance Rust code and use it in your JavaScript applications.
+
+## What is the Node API?
+
+The Node API provides a stable interface for building native addons for Node.js, it allows you to write native code that can be called directly from JavaScript, usually offering superior performance compared to pure JavaScript code.
+
+## My use case
+
+Recently, I was working on a project involving image upload and processing. I wanted to convert any image format to JPG, resize them to a specific size, and generate a blurhash (thumbnail) for display in a feed. After implementing all of this in JavaScript, I realized the performance was not satisfactory, especially the official [blurhash](https://github.com/woltapp/blurhash/tree/master/TypeScript) algorithm, which was very slow. For a simple 57Kb (735x735) image, it took about 300ms just to generate the blurhash.
+
+So, I decided to combine some Rust crates to handle image processing and blurhash generation. The crates I used were:
+- [image](https://crates.io/crates/image): an image processing library that supports various formats and operations.
+- [blurhash](https://crates.io/crates/blurhash): an implementation of the blurhash algorithm in Rust.
+- [fast-image-resize](https://crates.io/crates/fast-image-resize): an image resizing library that uses [SIMD](https://en.wikipedia.org/wiki/SIMD) to speed up the process.
+
+## Why not @napi-rs/image?
+
+Although [@napi-rs/image](https://image.napi.rs/) uses the [image](https://crates.io/crates/image) crate under the hood, using it involves performing some computations on the JavaScript side, which ends up slowing down the process. Additionally, the [@napi-rs/image](https://image.napi.rs/) library does not support blurhash generation (where the biggest performance bottleneck was). Therefore, I decided to perform the entire processing pipeline in Rust, using [NAPI-RS](https://napi.rs/) only to bridge JavaScript and Rust.
+
+## Implementation
+
+The implementation of the code is quite simple. First, we create a new Napi-RS project with the command:
+
+```bash
+bunx @napi-rs/cli new
+```
+
+This will create a new folder with the project name, containing the following structure:
+
+```
+├── .cargo
+│   └── config.toml
+├── src
+│   └── lib.rs
+├── Cargo.toml
+├── build.rs
+├── package.json
+```
+
+I chose not to use GitHub Actions and also removed the `npm` folder since I will not be publishing the package to NPM. The Rust code will reside in the `src/lib.rs` folder, and the `Cargo.toml` file will contain the necessary dependencies. The `build.rs` file is responsible for compiling the Rust code and generating the bindings for Node.js.
+
+I also opted to enable the `aarch64-apple-darwin` architecture to compile the code for my Apple Silicon MacBook. If you want to add more architectures, simply modify the `package.json` to include the desired architectures. The `package.json` file should look like this:
+
+```json
+{
+	"name": "@acme/image",
+	"version": "0.0.0",
+	"license": "MIT",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"napi": {
+		"name": "acme_image",
+		"triples": {
+			"additional": [
+				"aarch64-apple-darwin"
+			]
+		}
+	},
+	"engines": {
+		"node": ">= 10"
+	},
+	"scripts": {
+		"build:debug": "napi build --platform ./dist",
+		"build": "napi build --platform --release ./dist",
+		"prepublishOnly": "napi prepublish -t npm",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@napi-rs/cli": "^2.18.4"
+	}
+}
+```
+
+### Simple Example
+
+The following example shows how to create a simple addon that adds two numbers:
+
+```rust
+#![deny(clippy::all)]
+ 
+#[macro_use]
+extern crate napi_derive;
+ 
+#[napi]
+fn sum(a: i32, b: i32) -> i32 {
+  a + b
+}
+```
+
+When running the `bun run build` command, the code will be compiled, and the bindings will be generated in the `dist` folder. Thanks to NAPI-RS, the TypeScript type declaration files will be automatically generated, allowing you to use the Rust code directly in your JavaScript project. The cool thing is that the Rust compiler will generate the dynamic library for the current architecture, so you don't need to worry about it.
+
+```ts
+// index.d.ts
+export declare function sum(a: number, b: number): number
+```
+
+### Image processing
+
+The image processing code is a bit more complex, but the idea is the same. The following code shows how to convert an image to JPG, resize it, and generate a blurhash:
+
+```rust
+fn check_size(image: &DynamicImage) -> (bool, u32, u32) {
+	let (width, height) = image.dimensions();
+
+	if width > 1024 || height > 1024 {
+		let ratio = width as f32 / height as f32;
+
+		match ratio > 1.0 {
+			true => return (true, 1024, (1024.0 / ratio) as u32),
+			false => return (true, (1024.0 * ratio) as u32, 1024),
+		}
+	}
+
+	return (false, width, height);
+}
+
+fn process(data: &[u8]) -> Result<(Buffer, u32, u32, String)> {
+	let reader = BufReader::new(Cursor::new(data));
+
+	let image = ImageReader::new(reader)
+		.with_guessed_format()?
+		.decode()
+		.map_err(|_| Error::from_reason("Failed to decode image"))?;
+
+	let pixel_type = image.pixel_type().unwrap();
+	let color_type: ExtendedColorType = image.color().into();
+
+	let (need_resize, width, height) = check_size(&image);
+
+	let mut buffer: Vec<u8> = Vec::with_capacity((width * height) as usize * pixel_type.size());
+	let mut write_cursor = Cursor::new(&mut buffer);
+
+	if need_resize {
+		let mut destination = Image::new(width, height, pixel_type);
+		let mut resizer = Resizer::new();
+
+		resizer.resize(&image, &mut destination, None).unwrap();
+
+		let mut encoder = JpegEncoder::new_with_quality(&mut write_cursor, 80);
+		encoder
+			.encode(destination.buffer(), width, height, color_type)
+			.map_err(|_| Error::from_reason("Failed to resize image"))?;
+
+		// Rewind to the beginning of the buffer to create blurhash
+		write_cursor.rewind()?;
+
+		let raw = ImageReader::with_format(write_cursor, ImageFormat::Jpeg)
+			.decode()
+			.map_err(|_| Error::from_reason("Failed to decode image"))?
+			.to_rgba8();
+
+		let blurhash = blurhash::encode(4, 4, width, height, &raw)
+			.map_err(|_| Error::from_reason("Failed to generate blurhash from image"))?;
+
+		return Ok((Buffer::from(buffer), width, height, blurhash));
+	}
+
+	let encoder = JpegEncoder::new_with_quality(&mut write_cursor, 80);
+	image.write_with_encoder(encoder).map_err(|_| Error::from_reason("Failed to encode image"))?;
+
+	let blurhash = blurhash::encode(4, 4, width, height, &image.to_rgba8())
+		.map_err(|_| Error::from_reason("Failed to generate blurhash from image"))?;
+
+	return Ok((Buffer::from(buffer), width, height, blurhash));
+}
+```
+
+The `process` function takes a byte array (buffer) as input and returns a tuple containing the processed image, its width, height, and the blurhash string. The function first decodes the image using the `image` crate, checks if resizing is needed, and then either resizes the image or encodes it directly. Finally, it generates the blurhash string using the `blurhash` crate.
+
+Since NAPI-RS doesn't allow returning a tuple, we need to create a custom struct to hold the results:
+
+```rust
+#[napi(object)]
+pub struct ImageTransformation {
+	pub data: Buffer,
+	pub width: u32,
+	pub height: u32,
+	pub blurhash: String,
+}
+
+impl ImageTransformation {
+	pub fn new(data: Buffer, width: u32, height: u32, blurhash: String) -> Self {
+		Self { data, width, height, blurhash }
+	}
+}
+```
+
+The `ImageTransformation` struct is marked with the `#[napi(object)]` attribute, which allows it to be used as a return type in NAPI-RS. The struct contains the processed image data, width, height, and blurhash string. The `Buffer` is a special type provided by NAPI-RS that allows you to work with raw byte data in JavaScript.
+
+Finally, we need to expose the `process` function to JavaScript, but Node API allow us to execute the code in a UV thread pool, so we can use a Task to run the code in a separate thread.
+
+```rust
+pub struct ImageProcessor {
+	data: Ref<JsBufferValue>,
+}
+
+#[napi]
+impl Task for ImageProcessor {
+	type Output = (Buffer, u32, u32, String);
+	type JsValue = ImageTransformation;
+
+	fn compute(&mut self) -> Result<Self::Output> {
+		Ok(process(self.data.as_ref())?)
+	}
+
+	fn resolve(&mut self, _: Env, output: Self::Output) -> Result<Self::JsValue> {
+		let (data, width, height, blurhash) = output;
+		Ok(ImageTransformation::new(data, width, height, blurhash))
+	}
+
+	fn finally(&mut self, env: Env) -> Result<()> {
+		self.data.unref(env)?;
+		Ok(())
+	}
+}
+
+#[napi]
+pub fn process_image(data: JsBuffer, signal: Option<AbortSignal>) -> Result<AsyncTask<ImageProcessor>> {
+	return Ok(AsyncTask::with_optional_signal(ImageProcessor { data: data.into_ref()? }, signal));
+}
+```
+
+The `Task` trait is implemented for the `ImageProcessor` struct, which allows us to run the image processing code in a separate thread. The `compute` method is where the actual processing takes place, and the `resolve` method is used to return the result to JavaScript. The `finally` method is called when the task is completed, allowing us to unref the data buffer (to prevent memory leaks).
+
+The `process_image` function is the entry point for JavaScript, and it takes a `JsBuffer` as input. It returns an `AsyncTask` that will run the image processing code in a separate thread. The cool thing about this is that we can use the `AbortSignal` to add cancellation support to the task. This is useful if we want to cancel the image processing if the request is aborted somehow.
+
+After running the `bun run build` command, the generated TypeScript declaration file will look like this:
+
+```ts
+// @lib: esnext
+// @filename: index.d.ts
+// ---cut-before---
+// index.d.ts
+export interface ImageTransformation {
+  data: Buffer
+  width: number
+  height: number
+  blurhash: string
+}
+
+export declare function processImage(data: Buffer, signal?: AbortSignal | undefined | null): Promise<ImageTransformation>
+```
+
+Now we can use the `processImage` function in our JavaScript code:
+
+```ts
+// @lib: esnext
+// @filename: image.d.ts
+declare module "@acme/image" {
+	export interface ImageTransformation {
+		data: Buffer
+		width: number
+		height: number
+		blurhash: string
+	}
+
+	export function processImage(data: Buffer, signal?: AbortSignal | undefined | null): Promise<ImageTransformation>
+}
+// @filename: index.ts
+let buffer!: Buffer;
+
+// ---cut-before---
+import { processImage } from "@acme/image";
+
+async function main() {
+	const controller = new AbortController();
+	const image = await processImage(buffer, controller.signal)
+
+	const raw = image.data;
+	const placeholder = image.blurhash;
+}
+```
+
+## Conclusion
+
+Using Rust for intensive processing in JavaScript applications can significantly improve performance, we can easily combine the power of Rust with the flexibility of JavaScript. [@Brooooooklyn](https://github.com/Brooooooklyn) the author of [NAPI-RS](https://napi.rs/) has done an amazing job creating a lot of Rust crate bindings for Node.js, some of them are:
+
+- [@napi-rs/image](https://image.napi.rs/): Image processing library
+- [@node-rs/argon2](https://github.com/napi-rs/node-rs/tree/main/packages/argon2): Argon2 hashing library
+- [@node-rs/jsonwebtoken](https://github.com/napi-rs/node-rs/tree/main/packages/jsonwebtoken): JWT library
+
+By simply replacing JavaScript implementations with Rust, we can achieve better performance and take advantage of Rust's safety features.
+
+After the implementation, I was able to reduce the time taken to process the entire request from ~400ms to ~50ms, which is a significant improvement.
+
+That's it! I hope you found this article helpful. If you have any questions or suggestions, feel free to contact me.
