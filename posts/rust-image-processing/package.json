@@ -1,5 +1,5 @@
 {
-	"name": "@ceopaludetto/post-my-blog",
+	"name": "@ceopaludetto/post-rust-image-processing",
 	"type": "module",
 	"version": "0.0.0",
 	"exports": {
@@ -12,6 +12,6 @@
 		"./index.mdx"
 	],
 	"dependencies": {
-		"@material/material-color-utilities": "^0.3.0"
+		"@napi-rs/cli": "^2.18.4"
 	}
 }
