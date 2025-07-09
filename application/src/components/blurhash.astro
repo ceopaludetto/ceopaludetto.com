@@ -1,0 +1,57 @@
+---
+import type { ImageMetadata } from "astro";
+import type { LocalImageProps } from "astro:assets";
+
+import { Image } from "astro:assets";
+import { blurhashToBase64 } from "blurhash-base64";
+
+import { getImageBuffer, imageToBlurhash } from "~/utilities/image";
+
+type Props = LocalImageProps;
+
+const { class: cls, ...props } = Astro.props;
+
+if (!props.src)
+	throw new Error("Blurhash component requires a 'src' prop.");
+
+const buffer = await getImageBuffer(props.src as ImageMetadata);
+const blurhash = await imageToBlurhash(buffer);
+
+const base64 = blurhashToBase64(blurhash);
+---
+
+<div data-blurhash-container="true" class="relative overflow-hidden" class:list={cls ?? ""}>
+	<img
+		data-blurhash="true"
+		src={base64}
+		aria-hidden="true"
+		class="absolute inset-0 !m-0 size-full transition-opacity duration-500"
+	/>
+	<Image {...props} />
+</div>
+
+<!-- Replace blurhash image with original one -->
+<script>
+	function onLoad(this: HTMLImageElement) {
+		const placeholder = this.previousElementSibling as HTMLImageElement;
+		if (placeholder && placeholder.dataset.blurhash === "true") placeholder.style.opacity = "0";
+
+		this.removeEventListener("load", onLoad);
+	}
+
+	const images = document.querySelectorAll("img");
+	for (const image of images) {
+		if (image.dataset.blurhash === "true") {
+			image.addEventListener("transitionend", () => image.remove());
+			continue;
+		}
+
+		// If the image is already loaded, we can call onLoad immediately
+		if (image.complete) {
+			onLoad.call(image);
+			continue;
+		}
+
+		image.addEventListener("load", onLoad);
+	}
+</script>

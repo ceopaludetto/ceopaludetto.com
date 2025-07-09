@@ -4,6 +4,7 @@ import type { InferGetStaticPropsType } from "astro";
 import { getCollection, render } from "astro:content";
 import { formatDate } from "date-fns";
 
+import Blurhash from "~/components/blurhash.astro";
 import Base from "~/layouts/base.astro";
 import Post from "~/layouts/post.astro";
 import { collectDependenciesFromPost } from "~/utilities/dependencies";
@@ -16,7 +17,7 @@ export async function getStaticPaths() {
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
 const { entry } = Astro.props;
-const { Content } = await render(entry);
+const { Content, remarkPluginFrontmatter } = await render(entry);
 
 const image = `${import.meta.env.SITE}/${entry.id}/image.png`;
 const canonical = `${import.meta.env.SITE}/${entry.id}`;
@@ -43,10 +44,20 @@ const dependencies = await collectDependenciesFromPost(entry);
 	</Fragment>
 	<Post>
 		<h1 class="mb-1">{entry.data.title}</h1>
-		<p class="mb-8 mt-0 text-body-large text-on-surface-variant">{formatDate(entry.data.date, "MMMM d, yyyy")}</p>
+		<p class="mb-8 mt-0 text-body-large text-on-surface-variant">
+			{formatDate(entry.data.date, "MMMM d, yyyy")} — {remarkPluginFrontmatter.minutesRead}
+		</p>
+		{entry.data.cover && (
+			<Blurhash
+				class="not-prose my-14 rounded-xl lg:-mx-24"
+				src={entry.data.cover}
+				alt={entry.data.coverAlt!}
+				layout="full-width"
+			/>
+		)}
 		<Content />
-		<h3>Dependency map</h3>
-		{dependencies.length > 0 && (
+		{entry.data.showDependencyMap && dependencies.length > 0 && (
+			<h3>Dependency map</h3>
 			<div class="-mx-4 flex gap-x-3 overflow-x-auto px-4">
 				{dependencies.map(([dependency, version]) => (
 					// eslint-disable-next-line style/max-len
@@ -56,7 +67,6 @@ const dependencies = await collectDependenciesFromPost(entry);
 				))}
 			</div>
 		)}
-		<hr />
 	</Post>
 </Base>
 

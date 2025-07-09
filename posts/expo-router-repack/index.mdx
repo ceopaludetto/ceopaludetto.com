@@ -3,6 +3,8 @@ title: "How do I combine @callstack/repack with expo-router"
 description: "Making react native more enjoyable"
 date: "2025-03-11"
 color: "#00FF9B"
+cover: "./images/cover.jpg"
+coverAlt: "Tree roots"
 draft: false 
 ---
 
@@ -28,7 +30,7 @@ When we execute the `expo prebuild` command, expo replaces the android and iOS s
 
 In development, expo also replaces the JS Bundle URL, changing it from `index` to `.expo/.virtual-metro-entry`. This breaks development since repack only exposes the bundle via `http://localhost:8081/index` ([#906](https://github.com/callstack/repack/issues/906)). To fix this, I've created an [expo configuration plugin](https://docs.expo.dev/guides/config-plugins/) that changes the bundle URL back to `index`:
 
-```ts
+```ts twoslash
 import type { ConfigPlugin } from "expo/config-plugins";
 
 import { withAppDelegate, withMainApplication } from "expo/config-plugins";
@@ -70,7 +72,7 @@ Everything works as expected.
 
 In the production workflow we want to ensure that repack is used in release builds, for this we need to include two more modifications in the expo configuration plugin in order to replace `@expo/cli`:
 
-```ts
+```ts twoslash
 import type { ExpoConfig } from "expo/config";
 
 import { withXcodeProject, withAppBuildGradle } from "expo/config-plugins";
@@ -138,8 +140,8 @@ new DefinePlugin({
 
 After that, we need to manually create the `require.context` function that `expo-router` uses to load the routes.
 
-```ts
-// @filename env.d.ts
+```ts twoslash
+// @filename: env.d.ts
 declare namespace NodeJS {
 	interface Require {
 		context(
@@ -160,7 +162,7 @@ declare var process : {
 	};
 };
 
-// @filename context.ts
+// @filename: context.ts
 // ---cut-before---
 export const context = require.context(
 	process.env.EXPO_ROUTER_APP_ROOT,
@@ -172,7 +174,7 @@ export const context = require.context(
 
 And now we create our root component:
 
-```tsx
+```tsx twoslash
 // @filename: context.ts
 export const context: any = "";
 // @filename: Application.tsx
