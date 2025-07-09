@@ -6,6 +6,8 @@ import { renderMarkdown, renderMarkdownInline } from "@ceopaludetto/twoslash";
 import { transformerTwoslash } from "@shikijs/twoslash";
 import { defineConfig } from "astro/config";
 import { FontaineTransform } from "fontaine";
+import { toString } from "mdast-util-to-string";
+import getReadingTime from "reading-time";
 
 const fonts = [
 	{ name: "lora", fallbacks: ["ui-sans-serif", "Helvetica Neue", "Arial", "sans-serif"] },
@@ -13,16 +15,27 @@ const fonts = [
 	{ name: "monaspace-neon", fallbacks: ["SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"] },
 ];
 
+function remarkReadingTime() {
+	return function (tree, { data }) {
+		const textOnPage = toString(tree);
+		const readingTime = getReadingTime(textOnPage);
+
+		data.astro.frontmatter.minutesRead = readingTime.text;
+	};
+}
+
 // https://astro.build/config
 export default defineConfig({
 	site: "https://ceopaludetto.com",
 	prefetch: { prefetchAll: true },
+	markdown: { remarkPlugins: [remarkReadingTime] },
 	integrations: [
 		mdx({
 			shikiConfig: {
 				theme: "css-variables",
 				transformers: [
 					transformerTwoslash({
+						explicitTrigger: true,
 						rendererRich: { errorRendering: "hover", renderMarkdown, renderMarkdownInline, classExtra: "not-prose" },
 					}),
 				],

@@ -1,5 +1,5 @@
 {
-	"name": "@ceopaludetto/post-backend-stack",
+	"name": "@ceopaludetto/post-authoring-documents-in-typst",
 	"type": "module",
 	"version": "0.0.0",
 	"exports": {
@@ -10,8 +10,5 @@
 	"module": "index.mdx",
 	"files": [
 		"./index.mdx"
-	],
-	"dependencies": {
-		"@nestjs/common": "^11.0.11"
-	}
+	]
 }

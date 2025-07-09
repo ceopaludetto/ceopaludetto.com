@@ -67,7 +67,7 @@ export function createTypographyTokens() {
 }
 
 export default {
-	content: ["./src/**/*.{astro,html,ts}"],
+	content: ["./src/**/*.{astro,html,ts}", "../posts/**/*.{astro,html,ts,mdx}"],
 	theme: {
 		fontSize: createTypographyTokens(),
 		fontFamily: {

@@ -3,6 +3,8 @@ title: "Using Rust for intensive processing in JavaScript applications"
 description: "Learn how to leverage Rust for high-performance image processing in JavaScript applications using NAPI-RS"
 date: "2025-04-02"
 color: "#E45928"
+cover: "./images/cover.jpg"
+coverAlt: "Rusty car panel"
 draft: false
 ---
 
@@ -102,7 +104,7 @@ fn sum(a: i32, b: i32) -> i32 {
 
 When running the `bun run build` command, the code will be compiled, and the bindings will be generated in the `dist` folder. Thanks to NAPI-RS, the TypeScript type declaration files will be automatically generated, allowing you to use the Rust code directly in your JavaScript project. The cool thing is that the Rust compiler will generate the dynamic library for the current architecture, so you don't need to worry about it.
 
-```ts
+```ts twoslash
 // index.d.ts
 export declare function sum(a: number, b: number): number
 ```
@@ -239,7 +241,7 @@ The `process_image` function is the entry point for JavaScript, and it takes a `
 
 After running the `bun run build` command, the generated TypeScript declaration file will look like this:
 
-```ts
+```ts twoslash
 // @lib: esnext
 // @filename: index.d.ts
 // ---cut-before---
@@ -256,7 +258,7 @@ export declare function processImage(data: Buffer, signal?: AbortSignal | undefi
 
 Now we can use the `processImage` function in our JavaScript code:
 
-```ts
+```ts twoslash
 // @lib: esnext
 // @filename: image.d.ts
 declare module "@acme/image" {

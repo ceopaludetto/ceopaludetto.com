@@ -1,0 +1,288 @@
+---
+title: "The journey of migrating a JS server to Rust"
+description: "My experience migrating a JS server to Rust and the reasons behind it"
+date: "2025-07-03"
+color: "#A684FF"
+cover: "./images/cover.jpg"
+coverAlt: "Purple lamps on a ladder"
+draft: true
+showDependencyMap: false
+---
+
+Nesse post tento compartilhar um pouco da minha experiência migrando um servidor de JS para Rust e as razões por trás dessa decisão.
+
+O foco principal é mostrar como foi o processo. Embora eu tenha bastante experiência em JS e seu ecossistema, não sou um expert em Rust, todo exemplo apresentado aqui foi feito com o intuito de mostrar como é possível fazer a migração, mas não necessariamente é a melhor forma de se fazer.
+
+## Why I decided to leave JS behind
+
+JS tem um ecossistema vasto, maduro e cheio de bibliotecas incríveis. No entanto, já faz um tempo que eu venho flertando com linguagens mais modernas e com paradigmas diferentes. Features como sound type system, pattern matching, borrow checker, entre outras, me atraem bastante e me fazem querer explorar mais essas linguagens.
+
+Embora JS tenha evoluído bastante nos últimos anos, em especial com a chegada do [Bun](https://bun.sh/), que trouxe uma série de melhorias de performance e novas APIs, ainda estamos falando de uma linguagem JIT, single threaded, com garbage collector e sem suporte a paralelismo real. Devido a sua natureza decentralizada, as ferramentas JS são todas mantidas pela comunidade, não oferecendo um package manager oficial, um runtime oficial ou sequer um standard library oficial. Isso resulta em uma fragmentação do ecossistema, onde cada ferramenta tem seu próprio funcionamento, suas próprias APIs e sua própria forma de lidar com problemas comuns.
+
+Mudar de linguagem representa não só minha vontade de explorar novas tecnologias, mas também representa minha redescoberta na programação, sinto que meu progresso estava estagnado e que eu precisava de um novo desafio para continuar evoluindo como desenvolvedor. Vários problemas encontrados em linguagens mais complexas sequer existem em JS, sinto que reacendi minha paixão por desenvolvimento, algo que causa grande impacto na minha rotina.
+
+## My NestJS GraphQL setup
+
+Eu amo NestJS, gosto de sua modularidade, sua arquitetura inspirada no Angular e sua facilidade de uso. Sua implementação de GraphQL (code first) é excelente e realmente me permite reutilizar código entre resolvers e entidades. Sair do mundo do NestJS e GraphQL foi uma das partes mais difíceis da migração, lembro que busquei diferentes linguagens e frameworks que pudessem oferecer uma experiência similar de DI e modularidade, mas nada se comparava ao que o NestJS oferece.
+
+Kotlin com Quarkus e Smallrye GraphQL foi uma das opções que mais se aproximou, mas ainda assim não acredito que exista uma ORM tão poderosa quanto o [MikroORM](https://mikro-orm.io/), que é a ORM que uso no NestJS. A facilidade de uso e a flexibilidade do MikroORM são incomparáveis, e não encontrei nada parecido em outras linguagens.
+
+Uma das funcionalidades que mais gosto no MikroORM é a sua capacidade de implementar [dataloaders automaticamente](https://mikro-orm.io/docs/dataloaders), permitindo que eu faça consultas eficientes ao banco de dados sem me preocupar com o N+1 problem. Devido a sua arquitetura de [Unit of Work](https://mikro-orm.io/docs/unit-of-work), o MikroORM é capaz de agrupar consultas e otimizar o acesso aos dados, ele faz isso automaticamente, criando um contexto por requisição.
+
+Imagine o schema abaixo:
+
+```typescript twoslash
+// @experimentalDecorators: true
+// @emitDecoratorMetadata: true
+// @moduleResolution: bundler
+
+// @filename: user.entity.ts
+// ---cut-before---
+import type { Ref } from "@mikro-orm/core";
+
+import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from "@mikro-orm/core";
+import { Field, ID, ObjectType } from "@nestjs/graphql";
+
+@ObjectType()
+@Entity({ tableName: "User" })
+export class User {
+	@Field(() => ID)
+	@PrimaryKey()
+	public id!: string;
+
+	@Field(() => String)
+	@Property()
+	public name!: string;
+
+	@Field(() => [Post])
+	@OneToMany({ entity: () => Post, mappedBy: "author" })
+	public posts = new Collection<Post>(this);
+}
+
+@ObjectType()
+@Entity({ tableName: "Post" })
+export class Post {
+	@Field(() => ID)
+	@PrimaryKey()
+	public id!: string;
+
+	@Field(() => String)
+	@Property()
+	public content!: string;
+
+	@Field(() => User)
+	@ManyToOne({ entity: () => User, ref: true })
+	public author!: Ref<User>;
+}
+```
+
+E a seguinte consulta GraphQL:
+
+```graphql
+query Posts {
+	posts {
+		id
+		content
+		author {
+			id
+			name
+		}
+	}
+}
+```
+
+Quando executada, a consulta acima normalmente geraria uma consulta SQL para os posts e uma consulta SQL para cada autor de cada post, resultando no N+1 problem. 
+
+```sql
+SELECT * FROM `Post`;
+SELECT * FROM `User` WHERE `id` = ?;
+SELECT * FROM `User` WHERE `id` = ?;
+SELECT * FROM `User` WHERE `id` = ?;
+...
+```
+
+No entanto, com o MikroORM, isso é otimizado automaticamente. O MikroORM agrupa todas as queries no mesmo tick do event loop e executa uma única consulta SQL para buscar todos os autores de uma vez, evitando o N+1 problem. O código abaixo mostra como isso é feito no resolver do NestJS:
+
+```typescript twoslash
+// @experimentalDecorators: true
+// @emitDecoratorMetadata: true
+// @moduleResolution: bundler
+
+// @filename: entities.ts
+import type { Ref } from "@mikro-orm/core";
+
+import { Collection, Entity, ManyToOne, OneToMany, PrimaryKey, Property } from "@mikro-orm/core";
+import { Field, ID, ObjectType } from "@nestjs/graphql";
+
+@ObjectType()
+@Entity({ tableName: "User" })
+export class User {
+	@Field(() => ID)
+	@PrimaryKey()
+	public id!: string;
+
+	@Field(() => String)
+	@Property()
+	public name!: string;
+
+	@Field(() => [Post])
+	@OneToMany({ entity: () => Post, mappedBy: "author" })
+	public posts = new Collection<Post>(this);
+}
+
+@ObjectType()
+@Entity({ tableName: "Post" })
+export class Post {
+	@Field(() => ID)
+	@PrimaryKey()
+	public id!: string;
+
+	@Field(() => String)
+	@Property()
+	public content!: string;
+
+	@Field(() => User)
+	@ManyToOne({ entity: () => User, ref: true })
+	public author!: Ref<User>;
+}
+
+// @filename: index.ts
+// ---cut-before---
+import { EntityManager } from "@mikro-orm/libsql";
+import { Query, Parent, Resolver, ResolveField } from "@nestjs/graphql";
+import { Injectable } from "@nestjs/common";
+
+import { Post, User } from "./entities";
+
+@Resolver(() => Post)
+export class PostResolver {
+	public constructor(private readonly postService: PostService) {}
+
+	@Query(() => [Post])
+	public async posts() {
+		return this.postService.findAll();
+	}
+
+	@ResolveField(() => User)
+	public async author(@Parent() post: Post) {
+		// This will be automatically batched by MikroORM
+		return post.author.load();
+	}
+}
+
+@Injectable()
+export class PostService {
+	public constructor(private readonly entityManager: EntityManager) {}
+
+	public async findAll() {
+		return this.entityManager.find(Post, {});
+	}
+}
+```
+
+Como podemos observar no campo `author` da classe `PostResolver`, o método `load()` é chamado para carregar o autor de cada post. Porém devido ao dataloader automático do MikroORM, as seguintes consultas SQL são executadas:
+
+```sql
+SELECT * FROM `Post`;
+SELECT * FROM `User` WHERE `id` IN (...);
+```
+
+## Why Rust?
+
+Rust é uma linguagem de programação moderna, com um sistema de tipos forte e um compilador que garante segurança de memória. Ela é projetada para ser rápida, segura e concorrente, o que a torna uma excelente escolha para aplicações de alta performance. Para mim, tudo em Rust parece perfeitamente pensado, mesmo sendo uma linguagem que apresenta ótima performance, a experiência de desenvolvimento não é sacrificada, pelo contrário, Rust oferece uma experiência de desenvolvimento muito agradável, seus macros procedurais, o sistema de traits e a forma como lida com erros são exemplos disso.
+
+Rust utiliza o recente porém muito aclamado errors as values pattern, que te obriga a lidar com erros de forma explícita, o que resulta em um código mais robusto e menos propenso a falhas. Imagine o código abaixo, que representa uma simples função de divisão:
+
+```typescript twoslash
+export function divide(a: number, b: number): number {
+	if (b === 0) 
+		throw Error("Cannot divide by zero");
+
+	return a / b;
+}
+```
+
+Em Rust, a mesma função seria escrita da seguinte forma:
+
+```rust
+pub fn divide(a: f64, b: f64) -> Result<f64, String> {
+	match b {
+		0.0 => Err("Cannot divide by zero".to_owned()),
+		_ => Ok(a / b),
+	}
+}
+```
+
+Ao utilizar a função em TypeScript você pode simplesmente chamar a função e esquecer que ela pode lançar um erro, o que pode resultar em um código mais simples, mas também mais propenso a falhas. Já em Rust, você é obrigado a lidar com o erro de forma explícita, o que resulta em um código mais robusto e menos propenso a falhas.
+
+```typescript twoslash
+function divide(a: number, b: number): number {
+	if (b === 0) 
+		throw Error("Cannot divide by zero");
+
+	return a / b;
+}
+// ---cut-before---
+function main() {
+	const res = divide(10, 0); // There's no hint that this function can throw an error
+}
+```
+
+```rust
+pub fn main() {
+	let res = divide(10.0, 0.0); // The type system forces you to handle the error
+	match res {
+		Ok(value) => println!("Result: {}", value),
+		Err(e) => eprintln!("Error: {}", e),
+	}
+}
+```
+
+Rust também possui um sistema de tipos muito poderoso, que permite criar abstrações complexas de forma segura e eficiente. O sistema de traits é um exemplo disso, ele permite criar interfaces genéricas que podem ser implementadas por diferentes tipos, resultando em um código mais flexível e reutilizável.
+
+```rust
+pub trait Shape {
+	fn area(&self) -> f64;
+}
+
+pub struct Circle {
+	radius: f64,
+}
+
+impl Shape for Circle {
+	fn area(&self) -> f64 {
+		std::f64::consts::PI * self.radius * self.radius
+	}
+}
+
+pub struct Rectangle {
+	width: f64,
+	height: f64,
+}
+
+impl Shape for Rectangle {
+	fn area(&self) -> f64 {
+		self.width * self.height
+	}
+}
+
+// Receives any type that implements the Shape trait
+pub fn print_area<T>(shape: &T) where T: Shape {
+	println!("Area: {}", shape.area());
+}
+```
+
+Mas o mais importante recurso de Rust é com certeza o `borrow checker`, que garante segurança de memória sem a necessidade de um garbage collector e/ou liberação manual de memória. O borrow checker garante que não existam referências inválidas ou concorrência de dados, resultando em um código mais seguro e menos propenso a falhas. Se você não conhece o borrow checker e o conceito de ownership, recomendo fortemente ler o [capítulo 4 do Rust book](https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html), esse capítulo é um excelente ponto de partida para entender memória de forma geral e como Rust lida com isso.
+
+## The migration process
+
+Antes de começar a migração, eu já tinha uma boa noção de como o Rust funcionava, mas não tinha experiência prática com a linguagem, então a primeira coisa que fiz foi buscar recursos para me aprofundar no ecossistema, um achado foi o [blessed.rs](https://blessed.rs/crates) que é um ótimo diretório de crates (bibliotecas) Rust, lá você encontra uma lista de crates recomendadas para diferentes propósitos, como web frameworks, ORMs, bibliotecas de teste, entre outras. Acabei escolhendo as seguintes crates para a migração:
+
+- [Actix Web](https://actix.rs/): Um framework web rápido e poderoso.
+- [Async GraphQL](https://async-graphql.github.io/async-graphql/en/index.html): Uma biblioteca baseada em macros para construir APIs GraphQL de forma assíncrona.
+- [Tracing](https://tracing.rs/): Uma biblioteca para instrumentação de código, que permite coletar logs e métricas de forma eficiente.
+- [Welds ORM](https://book.weldsorm.com/): Uma biblioteca para trabalhar com bancos de dados, que oferece uma API simples e intuitiva para consultas e manipulação de dados.
+
+Uma curiosidade interessante sobre Rust é que embora a linguagem tenha suporte a async/await, a implementação do runtime async é feita por crates externas, o que permite que você escolha o runtime que melhor se adapta às suas necessidades. No meu caso optei pelo [Tokio](https://tokio.rs/), que é o runtime async mais popular e amplamente utilizado na comunidade Rust.
+
+### The basics

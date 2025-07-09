@@ -1,0 +1,19 @@
+{
+	"name": "@ceopaludetto/post-moving-to-rust",
+	"type": "module",
+	"version": "0.0.0",
+	"exports": {
+		"import": "./index.mdx",
+		"require": "./index.mdx"
+	},
+	"main": "index.mdx",
+	"module": "index.mdx",
+	"files": [
+		"./index.mdx"
+	],
+	"dependencies": {
+		"@mikro-orm/core": "^6.4.16",
+		"@mikro-orm/libsql": "^6.4.16",
+		"@nestjs/graphql": "^13.1.0"
+	}
+}

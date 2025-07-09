@@ -33,6 +33,6 @@
 		"mdast-util-to-hast": "^13.2.0"
 	},
 	"devDependencies": {
-		"shiki": "^3.1.0"
+		"shiki": "^3.7.0"
 	}
 }

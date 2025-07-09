@@ -1,5 +1,5 @@
 ---
-import { getCollection } from "astro:content";
+import { getCollection, render } from "astro:content";
 import { format } from "date-fns";
 
 import Base from "~/layouts/base.astro";
@@ -7,15 +7,24 @@ import { sortByDate } from "~/utilities/date";
 
 const posts = (await getCollection("posts", ({ data }) => import.meta.env.DEV || !data.draft))
 	.sort(sortByDate);
+
+const readTimeByID = Object.fromEntries(
+	await Promise.all(posts.map(async (entry) => [
+		entry.id,
+		(await render(entry)).remarkPluginFrontmatter.minutesRead,
+	])),
+);
 ---
 
 <Base title="ceo — A blog by Carlos Paludetto" color="#0ea5e9">
-	<main class="mx-auto flex max-w-[70ch] flex-col gap-y-10 px-4 py-8 lg:px-8">
+	<main class="mx-auto flex max-w-[80ch] flex-col gap-y-10 px-4 py-8 lg:px-8">
 		<div class="flex flex-col gap-y-6">
 			{posts.map((entry) => (
 				<a class="group inline-flex flex-col" href={`/${entry.id}`}>
 					<span class="mb-1 font-serif text-headline-medium group-hover:text-primary">{entry.data.title}</span>
-					<span class="text-label-large text-on-surface-variant">{format(entry.data.date, "MMMM d, yyyy")}</span>
+					<span class="text-label-large text-on-surface-variant">
+						{format(entry.data.date, "MMMM d, yyyy")} — {readTimeByID[entry.id]}
+					</span>
 				</a>
 			))}
 		</div>
