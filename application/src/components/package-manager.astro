@@ -1,0 +1,116 @@
+---
+import { Image } from "astro:assets";
+import { Code } from "astro:components";
+
+import { beardedIconBaseURL } from "~/utilities/constants";
+
+const id = Astro.locals.$id("package-manager");
+
+type PackageManager = "npm" | "yarn" | "bun" | "pnpm";
+
+const packageManagers: PackageManager[] = [
+	"npm",
+	"yarn",
+	"pnpm",
+	"bun",
+];
+
+/// keep-sorted
+type Command = {
+	arguments: string[];
+	isDevelopment?: boolean;
+	keyword?: string;
+};
+
+export type Props = {
+	commands: Command[];
+};
+
+const { commands } = Astro.props;
+
+function getFormattedCommand(command: Command, packageManager: PackageManager) {
+	const keyword = command.keyword ?? `add${command.isDevelopment ? " -D" : ""}`;
+	const cli = command.keyword && packageManager === "npm" ? "npx" : packageManager;
+
+	return `${cli} ${keyword} ${command.arguments.join(" ")}`;
+}
+
+function getBeardedIconURL(packageManager: PackageManager) {
+	return `${beardedIconBaseURL}/${packageManager}.svg`;
+}
+---
+
+<div data-package-manager-selector>
+	<div
+		role="tablist"
+		aria-label="Package manager selector"
+		class:list={[
+			"mt-6 not-prose flex items-center rounded-t-xl border-x border-t border-surface-container overflow-x-auto",
+			"bg-surface-container-lowest lg:-mx-8 [scrollbar-width:none]",
+		]}
+	>
+		{packageManagers.map((manager) => (
+			<button
+				role="tab"
+				id={`${id}-${manager}-tab`}
+				aria-controls={`${id}-${manager}-panel`}
+				aria-selected={manager === "npm" ? "true" : "false"}
+				tabindex={manager === "npm" ? "0" : "-1"}
+				data-package-manager={manager}
+				class:list={[
+					"flex items-center gap-2 border-r border-surface-container p-3 transition",
+					"text-on-surface-variant bg-transparent aria-selected:text-on-surface",
+				]}
+			>
+				<Image format="svg" width={16} height={16} alt={`${manager} logo`} src={getBeardedIconURL(manager)} />
+				<span class="text-label-large">{manager}</span>
+			</button>
+		))}
+	</div>
+	{packageManagers.map((manager) => (
+		<Code
+			lang="sh"
+			role="tabpanel"
+			aria-labelledby={`${id}-${manager}-tab`}
+			id={`${id}-${manager}-panel`}
+			theme="css-variables"
+			class="mt-0 !rounded-t-none [&_.line::before]:!content-none"
+			data-package-manager={manager}
+			code={commands.map((command) => getFormattedCommand(command, manager)).join("\n")}
+			hidden={manager !== "npm"}
+		/>
+	))}
+</div>
+
+<script>
+const containers = document.querySelectorAll<HTMLDivElement>("[data-package-manager-selector]");
+
+for (const container of containers) {
+	const buttons = container!.querySelectorAll<HTMLButtonElement>("button");
+	const blocks = container!.querySelectorAll<HTMLPreElement>("pre.astro-code");
+
+	function switchPackageManager(event: PointerEvent) {
+		const currentButton = event.currentTarget as HTMLButtonElement;
+		const packageManager = currentButton.dataset.packageManager;
+
+		buttons.forEach((button) => {
+			button.ariaSelected = "false";
+			button.tabIndex = -1;
+		});
+
+		blocks.forEach((block) => {
+			if (block.dataset.packageManager === packageManager) {
+				block.hidden = false;
+				return;
+			}
+
+			block.hidden = true;
+		});
+
+		currentButton.ariaSelected = "true";
+		currentButton.tabIndex = 0;
+	}
+
+	buttons.forEach((button) => button.addEventListener("click", switchPackageManager));
+}
+</script>

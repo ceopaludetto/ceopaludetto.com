@@ -1,196 +1,505 @@
 ---
-title: "How do I combine @callstack/repack with expo-router"
+title: "Combining Re.Pack with Expo Router"
 description: "Making react native more enjoyable"
-date: "2025-03-11"
-color: "#00FF9B"
-cover: "./images/cover.jpg"
-coverAlt: "Tree roots"
+date: "2025-08-18"
+color: "#D0B251"
+cover: 
+  src: "./images/cover.jpg"
+  alt: "Yellow train arriving at a metro station"
+  url: "https://unsplash.com/photos/focus-photo-of-yellow-train-crjPrExvShc"
 draft: false 
 ---
 
-Recently I migrated a React Native application to [@callstack/repack](https://re-pack.dev/). I wanted to take advantage of the performance and unique features that [Rspack](https://rspack.dev/) had to offer, such as support for virtual modules and greater control over the bundle. However, I didn't want to abandon the benefits that expo brings to a React Native application, in my case the [CNG](https://docs.expo.dev/workflow/continuous-native-generation/) and [expo-router](https://docs.expo.dev/router/introduction/).
+import FileTree from "~/components/file-tree.astro"
+import PackageManager from "~/components/package-manager.astro"
 
-So I wrote this article to show how I integrated `@callstack/repack` with `expo` and `expo-router`, ensuring that both development and production workflows work as expected.
+Recentemente fui desenvolver um aplicativo React Native e me deparei com a possibilidade de utilizar um bundler que fosse mais rápido e eficiente do que o Metro, especialmente para projetos maiores. Me refiro ao [Re.Pack](https://re-pack.dev/), um bundler alternativo baseado no [Rspack](https://rspack.rs/) que promete melhorar significativamente a performance de build e reload.
 
-## Fixing the development workflow
+Além de ser mais rápido, o Re.Pack também oferece uma série de recursos interessantes, como [Module Federation](https://module-federation.io/), Virtual Modules, Tree Shaking avançado e a possibilidade de usar plugins do ecossistema Rspack/Webpack.
 
-The first thing I did was to stop using `@expo/cli`. Since it runs Metro at undesired moments (e.g. before native build in release mode), I needed to ensure that I would only use the React Native CLI. Therefore, I changed the scripts in `package.json` to the following:
+Porém, embora o Re.Pack seja uma excelente alternativa, eu não queria, ao abandonar o Metro, perder a integração com o Expo Router, que é uma das minhas ferramentas favoritas para desenvolvimento de aplicativos React Native. Esse post é um guia passo a passo de como substituir o Metro pelo Re.Pack em um projeto React Native com [Expo Router](https://docs.expo.dev/router/introduction/), mantendo todas as funcionalidades e vantagens que o Expo oferece.
 
-```json
-"scripts": {
-	"start": "react-native start --reset-cache",
-	"android": "react-native run-android --no-packager",
-	"ios": "react-native run-ios --no-packager --simulator \"iPhone 16 Pro\"",
-	"bundle:ios": "react-native bundle --platform ios --entry-file src/index.ts --dev false",
-	"bundle:android": "react-native bundle --platform android --entry-file src/index.ts --dev false"
-}
-```
+Antes de começar, é importante ressaltar que, embora seja possível usar o Re.Pack com o Expo, essa configuração não é oficialmente suportada. Portanto, você pode encontrar alguns problemas ou limitações ao longo do caminho. Além disso, ferramentas como o Expo Go, Expo CLI e EAS não funcionarão com o Re.Pack, então você precisará usar um build nativo para testar seu aplicativo no emulador/dispositivo.
 
-When we execute the `expo prebuild` command, expo replaces the android and iOS scripts with `expo run (android|ios)`, assuming this is the initial setup for CNG. To keep the correct command, add a flag, in this case, I added `--no-packager`.
+## Pré-requisitos
 
-In development, expo also replaces the JS Bundle URL, changing it from `index` to `.expo/.virtual-metro-entry`. This breaks development since repack only exposes the bundle via `http://localhost:8081/index` ([#906](https://github.com/callstack/repack/issues/906)). To fix this, I've created an [expo configuration plugin](https://docs.expo.dev/guides/config-plugins/) that changes the bundle URL back to `index`:
+- Experiência com React Native, Expo e Expo Router.
+- Ambiente nativo configurado (Android Studio/SDKs, Xcode e CocoaPods).
+- Package manager de sua preferência.
+
+Ao final deste guia, você terá uma estrutura de projeto semelhante a esta:
+
+<FileTree 
+	tree={[
+		{
+			name: "src",
+			children: [
+				{
+					name: "screens",
+					children: [
+						{ name: "_layout.tsx", comment: "expo router layout" },
+						{ name: "index.tsx", comment: "expo router / page" },
+					],
+				},
+				{ name: "context.ts", comment: "expo router context" },
+				{ name: "application.tsx", comment: "expo router application entry point" },
+				{ name: "index.ts", comment: "react native entry point" },
+			],
+		},
+		{
+			name: "plugins",
+			children: [
+				{ name: "expo-repack-plugin.ts", comment: "expo configuration plugin for re-pack"},
+			],
+		},
+		{ name: "app.config.ts", comment: "expo CNG configuration file" },
+		{ name: "react-native.config.js", comment: "react native CLI configuration file" },
+		{ name: "rspack.config.mjs", comment: "rspack configuration file" },
+		{ name: "package.json" },
+	]} 
+/>
+
+## Criando o projeto e instalando dependências
+
+Criaremos um novo projeto Expo do zero. Instalaremos as dependências necessárias para o React Native, Expo e Expo Router.
+
+<PackageManager 
+	commands={[
+		{ arguments: ["expo"] },
+		{ arguments: ["@react-native-community/cli", "@types/react"], isDevelopment: true },
+		{ arguments: ["expo-router", "expo-linking", "react", "react-native", "react-native-screens", "react-native-safe-area-context"], keyword: "expo install"}
+	]} 
+/>
+
+Agora criaremos o arquivo `app.config.ts` na raiz do projeto. Este arquivo é necessário para o [Continuous Native Generation (CNG)](https://docs.expo.dev/workflow/continuous-native-generation/), que é uma funcionalidade do Expo que permite que você configure os projetos nativos do Android e iOS através de um arquivo de configuração TypeScript.
 
 ```ts twoslash
+// @moduleResolution: bundler
+// app.config.ts
+import type { ExpoConfig } from "expo/config";
+
+export default {
+	name: "YourApplicationName",
+	slug: "your-application-slug",
+	android: {
+		package: "com.yourcompany.yourapp",
+	},
+	ios: {
+		bundleIdentifier: "com.yourcompany.yourapp",
+	},
+	plugins: [
+		["expo-router", { root: "./src/screens" }] // Ajuste o caminho conforme necessário
+	]
+} satisfies ExpoConfig;
+```
+
+Ao executar o comando `npx expo prebuild`, o Expo irá gerar os projetos nativos do Android e iOS com base na configuração que você forneceu. Porém, ao tentar gerar a build de produção, o Expo utilizará sua própria CLI e o Metro como bundler, o que não é o que queremos. Precisamos remover essas configurações para garantir que o Re.Pack seja utilizado.
+
+## Substituindo o Expo CLI pela CLI padrão do React Native em produção
+
+Para fazermos isso, precisamos remover as configurações de `CLI_PATH` e `BUNDLE_COMMAND` do Expo, que são responsáveis por definir o caminho da CLI do Expo e o comando de bundle utilizado pelo Metro. Essas configurações são definidas nos scripts de build do Android e iOS, e precisamos removê-las para que o Re.Pack seja utilizado corretamente.
+
+No Android, isso fica no arquivo `./android/app/build.gradle` e no iOS, nos scripts de build custom do Xcode.
+
+Embora seja possível fazer isso manualmente, toda vez que você executar o comando `npx expo prebuild`, essas configurações serão sobrescritas. Portanto, precisamos automatizar esse processo através de um [plugin de configuração](https://docs.expo.dev/config-plugins/introduction/). Recomendo mover esse plugin para um pacote separado, mas para fins de simplicidade, vamos mantê-lo no mesmo projeto.
+
+```ts twoslash
+// @moduleResolution: bundler
+// plugins/expo-repack-plugin.ts
 import type { ConfigPlugin } from "expo/config-plugins";
 
-import { withAppDelegate, withMainApplication } from "expo/config-plugins";
+import { withAppBuildGradle, withXcodeProject } from "expo/config-plugins";
 
-const plugin: ConfigPlugin = (expo) => {
-	let res = expo;
+/**
+ * Configuration plugin to remove some expo defaults to ensure that re-pack works correctly.
+ *
+ * @param current Current expo configuration
+ * @returns Modified expo configuration
+ */
+export const withExpoRepackPlugin: ConfigPlugin = (current) => {
+	let res = current;
 
 	// iOS
-	res = withAppDelegate(res, async (configuration) => {
-		const appDelegate = configuration.modResults.contents;
-		configuration.modResults.contents = appDelegate.replace(".expo/.virtual-metro-entry", "index");
+	// Replace $CLI_PATH and $BUNDLE_COMMAND in the Xcode project (this will ensure that the correct CLI is used in production builds)
+	res = withXcodeProject(res, (configuration) => {
+		const xcodeProject = configuration.modResults;
+		const bundleReactNativeCodeAndImagesBuildPhase = xcodeProject.buildPhaseObject(
+			"PBXShellScriptBuildPhase",
+			"Bundle React Native code and images",
+		);
 
+		if (!bundleReactNativeCodeAndImagesBuildPhase)
+			return configuration;
+
+		const script = JSON.parse(bundleReactNativeCodeAndImagesBuildPhase.shellScript);
+		const patched = script
+			.replace(/if \[\[ -z "\$CLI_PATH" \]\]; then[\s\S]*?fi\n?/g, `export CLI_PATH="$("$NODE_BINARY" --print "require('path').dirname(require.resolve('@react-native-community/cli/package.json')) + '/build/bin.js'")"`)
+			.replace(/if \[\[ -z "\$BUNDLE_COMMAND" \]\]; then[\s\S]*?fi\n?/g, "");
+
+		bundleReactNativeCodeAndImagesBuildPhase.shellScript = JSON.stringify(patched);
 		return configuration;
 	});
 
 	// Android
-	res = withMainApplication(res, async (configuration) => {
-		const mainApplication = configuration.modResults.contents;
-		configuration.modResults.contents = mainApplication.replace(".expo/.virtual-metro-entry", "index");
+	// Replace cliFile and bundleCommand in the app/build.gradle file (this will ensure that the correct CLI is used in production builds)
+	res = withAppBuildGradle(res, (configuration) => {
+		const buildGradle = configuration.modResults.contents;
+		const patched = buildGradle.replace(/cliFile.*/, "").replace(/bundleCommand.*/, "bundleCommand = \"bundle\"");
 
+		configuration.modResults.contents = patched;
 		return configuration;
 	});
 
 	return res;
 };
-
-export default plugin;
 ```
 
-Now, when we execute the development workflow:
-
-- `bun expo prebuild`
-- `bun run ios`
-- `bun run start`
-
-Everything works as expected.
-
-## Fixing the production workflow
-
-In the production workflow we want to ensure that repack is used in release builds, for this we need to include two more modifications in the expo configuration plugin in order to replace `@expo/cli`:
+Agora precisamos adicionar esse plugin ao nosso arquivo `app.config.ts`:
 
 ```ts twoslash
-import type { ExpoConfig } from "expo/config";
+// @moduleResolution: bundler
+// @filename: ./plugins/expo-repack-plugin.ts
+import type { ConfigPlugin } from "expo/config-plugins";
 
-import { withXcodeProject, withAppBuildGradle } from "expo/config-plugins";
+import { withAppBuildGradle, withXcodeProject } from "expo/config-plugins";
 
-let res!: ExpoConfig
-// ---cut-before---
-// iOS
-res = withXcodeProject(res, async (configuration) => {
-	const xcodeProject = configuration.modResults;
-	const bundleReactNativeCodeAndImagesBuildPhase = xcodeProject.buildPhaseObject(
-		"PBXShellScriptBuildPhase",
-		"Bundle React Native code and images",
-	);
+/**
+ * Configuration plugin to remove some expo defaults to ensure that re-pack works correctly.
+ *
+ * @param current Current expo configuration
+ * @returns Modified expo configuration
+ */
+export const withExpoRepackPlugin: ConfigPlugin = (current) => {
+	let res = current;
 
-	if (!bundleReactNativeCodeAndImagesBuildPhase)
+	// iOS
+	// Replace $CLI_PATH and $BUNDLE_COMMAND in the Xcode project (this will ensure that the correct CLI is used in production builds)
+	res = withXcodeProject(res, (configuration) => {
+		const xcodeProject = configuration.modResults;
+		const bundleReactNativeCodeAndImagesBuildPhase = xcodeProject.buildPhaseObject(
+			"PBXShellScriptBuildPhase",
+			"Bundle React Native code and images",
+		);
+
+		if (!bundleReactNativeCodeAndImagesBuildPhase)
+			return configuration;
+
+		const script = JSON.parse(bundleReactNativeCodeAndImagesBuildPhase.shellScript);
+		const patched = script
+			.replace(/if \[\[ -z "\$CLI_PATH" \]\]; then[\s\S]*?fi\n?/g, `export CLI_PATH="$("$NODE_BINARY" --print "require('path').dirname(require.resolve('@react-native-community/cli/package.json')) + '/build/bin.js'")"`)
+			.replace(/if \[\[ -z "\$BUNDLE_COMMAND" \]\]; then[\s\S]*?fi\n?/g, "");
+
+		bundleReactNativeCodeAndImagesBuildPhase.shellScript = JSON.stringify(patched);
 		return configuration;
+	});
 
-	const script = JSON.parse(bundleReactNativeCodeAndImagesBuildPhase.shellScript);
-	const patched = script
-		.replace(/if \[\[ -z "\$CLI_PATH" \]\]; then[\s\S]*?fi\n?/g, `export CLI_PATH="$("$NODE_BINARY" --print "require('path').dirname(require.resolve('@react-native-community/cli/package.json')) + '/build/bin.js'")"`)
-		.replace(/if \[\[ -z "\$BUNDLE_COMMAND" \]\]; then[\s\S]*?fi\n?/g, "");
+	// Android
+	// Replace cliFile and bundleCommand in the app/build.gradle file (this will ensure that the correct CLI is used in production builds)
+	res = withAppBuildGradle(res, (configuration) => {
+		const buildGradle = configuration.modResults.contents;
+		const patched = buildGradle.replace(/cliFile.*/, "").replace(/bundleCommand.*/, "bundleCommand = \"bundle\"");
 
-	bundleReactNativeCodeAndImagesBuildPhase.shellScript = JSON.stringify(patched);
-	return configuration;
-});
+		configuration.modResults.contents = patched;
+		return configuration;
+	});
 
-// Android
-res = withAppBuildGradle(res, async (configuration) => {
-	const buildGradle = configuration.modResults.contents;
-	const patched = buildGradle.replace(/cliFile.*/, "").replace(/bundleCommand.*/, "bundleCommand = \"bundle\"");
+	return res;
+};
+// @filename: ./app.config.ts
+// ---cut-before---
+// app.config.ts
+import type { ExpoConfig } from "expo/config";
+import { withExpoRepackPlugin } from "./plugins/expo-repack-plugin";
 
-	configuration.modResults.contents = patched;
-	return configuration;
-});
+export default {
+	plugins: [
+		["expo-router", { root: "./src/screens" }],
+		withExpoRepackPlugin,
+	]
+} satisfies ExpoConfig;
 ```
 
-Now, when we execute the production workflow:
+Ao reexecutar o comando `npx expo prebuild`, o Expo irá gerar os projetos nativos do Android e iOS sem as configurações de CLI, permitindo que o Re.Pack seja utilizado corretamente em builds de produção.
 
-- `bun expo prebuild`
-- `bun run ios --mode Release`
+## Adicionando o Re.Pack
 
-Everything works as expected.
+Para adicionar o Re.Pack ao nosso projeto, precisamos instalar as dependências necessárias e criar a configuração do Rspack. Primeiro, vamos instalar o Re.Pack e o Rspack:
 
-## Integrating expo-router
+<PackageManager 
+	commands={[
+		{ arguments: ["@callstack/repack", "@rspack/core"], isDevelopment: true },
+		{ arguments: ["@swc/helpers"] },
+	]} 
+/>
 
-To integrate `expo-router`, we need to ensure that the environment variables are correctly set. In the `rspack.config.mjs` file, we need to add a `DefinePlugin` that sets the environment variables:
+Em desenvolvimento, o Expo mapeia o entrypoint do Metro para um módulo virtual `.expo/.virtual-metro-entry`. Quando executamos a aplicação, ao invés da parte nativa do aplicativo buscar o bundle em `http://localhost:8081/index.bundle`, ela busca em `http://localhost:8081/.expo/.virtual-metro-entry.bundle`. O Re.Pack não expõe esse módulo virtual por padrão, então utilizaremos a configuração de proxy do `devServer` do Rspack para redirecionar as requisições.
 
-```js
-new DefinePlugin({
-	"process.env.EXPO_BASE_URL": JSON.stringify(""),
-	"process.env.EXPO_OS": JSON.stringify(platform),
-	"process.env.EXPO_PROJECT_ROOT": JSON.stringify(resolve(".")),
-	"process.env.EXPO_ROUTER_ABS_APP_ROOT": JSON.stringify(resolve("./src/screens")),
-	"process.env.EXPO_ROUTER_APP_ROOT": JSON.stringify("~/screens"),
-	"process.env.EXPO_ROUTER_IMPORT_MODE": JSON.stringify("sync"),
-})
-```
+Além disso o Expo Router utiliza algumas variáveis de ambiente para funcionar corretamente, são elas:
 
 - `EXPO_BASE_URL`: The base URL of the application. (usually empty)
-- `EXPO_OS`: The platform that the application is running on. (you can use [@callstack/repack-plugin-expo-modules](https://re-pack.dev/docs/guides/expo-modules) which does this automatically)
+- `EXPO_OS`: The platform that the application is running on. (you can also use @callstack/repack-plugin-expo-modules which does this automatically)
 - `EXPO_PROJECT_ROOT`: The absolute path to the root of the project.
 - `EXPO_ROUTER_ABS_APP_ROOT`: The absolute path to the routes directory.
 - `EXPO_ROUTER_APP_ROOT`: The relative path to the routes directory.
 - `EXPO_ROUTER_IMPORT_MODE`: The import mode of the routes. (sync or lazy)
 
-After that, we need to manually create the `require.context` function that `expo-router` uses to load the routes.
+O arquivo de configuração do Rspack, `rspack.config.mjs`, na raiz do projeto fica assim:
+
+```js
+// rspack.config.mjs
+import { resolve } from 'node:path';
+
+import * as Repack from '@callstack/repack';
+import { DefinePlugin } from '@rspack/core';
+
+/**
+ * Rspack configuration for Re.Pack with Expo Router
+ * 
+ * @param {import("@callstack/repack").EnvOptions} context
+ * @type {import("@rspack/core").Configuration} configuration
+*/
+export default ({ mode, platform, devServer }) => ({
+	mode,
+	devServer: !!devServer && ({
+		...devServer,
+		// Use the virtual metro entry point for Expo
+		proxy: [{
+			context: ["/.expo/.virtual-metro-entry"],
+			pathRewrite: { "^/.expo/.virtual-metro-entry": "/index" },
+		}],
+	}),
+  resolve: {
+    ...Repack.getResolveOptions(),
+		alias: {
+			"~": resolve("src"),
+		},
+  },
+  module: {
+    rules: [
+      ...Repack.getJsTransformRules(),
+      ...Repack.getAssetTransformRules(),
+    ],
+  },
+  plugins: [
+		new Repack.RepackPlugin(),
+
+		// Inline some variables to support some expo and expo-router packages
+		new DefinePlugin({
+			"process.env.EXPO_BASE_URL": JSON.stringify(""), // Define the base URL for the Expo Router
+			"process.env.EXPO_OS": JSON.stringify(platform),
+			"process.env.EXPO_PROJECT_ROOT": JSON.stringify(resolve(".")),
+			"process.env.EXPO_ROUTER_ABS_APP_ROOT": JSON.stringify(resolve("./src/screens")),
+			"process.env.EXPO_ROUTER_APP_ROOT": JSON.stringify("./src/screens"), // Relative path to the app root
+			"process.env.EXPO_ROUTER_IMPORT_MODE": JSON.stringify("sync"),
+		}),
+	],
+});
+```
+
+Por fim criaremos o arquivo `react-native.config.js` na raiz do projeto. Este arquivo é necessário para que o Re.Pack seja utilizado como bundler ao executar `npx react-native start` ou `npx react-native bundle`:
+
+```js
+module.exports = {
+	commands: require("@callstack/repack/commands/rspack"),
+};
+```
+
+## Configurando o entrypoint do React Native
+
+Modificamos o arquivo `package.json` para incluir o entrypoint da aplicação, esse valor é utilizado automaticamente tanto pelo Re.Pack quanto pelo React Native CLI:
+
+```jsonc
+// package.json
+{
+	"main": "src/index.ts",
+	// ...
+}
+```
+
+Criamos então o arquivo `src/index.ts`, que será o entrypoint da aplicação. Este arquivo é responsável por iniciar o aplicativo React Native:
+
+```tsx twoslash
+// @moduleResolution: bundler
+// @filename: ./src/application.tsx
+import { Text } from 'react-native'
+
+export function Application() {
+	return <Text>Application</Text>;
+}
+// @filename: ./src/index.ts
+// ---cut-before---
+// src/index.ts
+import { AppRegistry } from "react-native";
+import { Application } from "./application";
+
+AppRegistry.registerComponent("main", () => Application);
+```
+
+E também o arquivo `src/application.tsx`, que é o componente raiz da aplicação. Este arquivo é responsável por renderizar a aplicação utilizando o Expo Router:
+
+```tsx twoslash
+// @moduleResolution: bundler
+// @filename: ./environment.d.ts
+/// <reference types="@rspack/core/module" />
+// @filename: ./src/application.tsx
+// ---cut-before---
+// src/application.tsx
+import { ExpoRoot } from "expo-router";
+import { ctx } from "expo-router/_ctx";
+
+export function Application() {
+	return <ExpoRoot context={ctx as any} />;
+}
+```
+
+Mas da onde vem esse `context`? O Expo Router utiliza um recurso presente na maioria dos bundlers modernos (inclusive no Metro) chamado `require.context` (CJS) ou `import.meta.context` (ESM) ou no caso do Vite `import.meta.glob`, que permite que você importe módulos dinamicamente com base em um padrão. O interessante é que você pode criar contextos personalizados com suas próprias regras de importação. No meu caso eu optei por criar um contexto que ignora caminhos com `@`, permitindo que eu posicione arquivos de componentes e hooks dentro do diretório `src/screens` sem que eles sejam importados pelo Expo Router. Caso não queira fazer isso, você pode simplesmente utilizar o contexto padrão do Expo, localizado em `expo-router/_ctx`.
+
+### Criando o contexto do Expo Router (opcional/avançado)
+
+Para criar é bem simples, apenas utilizo as variáveis de ambiente definidas anteriormente e o novo RegExp, o arquivo `src/context.ts` fica assim:
 
 ```ts twoslash
-// @filename: env.d.ts
-declare namespace NodeJS {
-	interface Require {
-		context(
-			request: string,
-			includeSubdirectories?: boolean,
-			filter?: RegExp,
-			mode?: "sync" | "eager" | "weak" | "lazy" | "lazy-once"
-		): any;
-	}
-}
-
-declare var require: NodeJS.Require;
-
-declare var process : {
-	env: {
-		EXPO_ROUTER_APP_ROOT: string;
-		EXPO_ROUTER_IMPORT_MODE?: "sync" | "eager" | "weak" | "lazy" | "lazy-once";
-	};
-};
-
-// @filename: context.ts
+// @moduleResolution: bundler
+// @filename: environment.d.ts
+/// <reference types="@rspack/core/module" />
+// @filename: src/context.ts
 // ---cut-before---
+// src/context.ts
 export const context = require.context(
-	process.env.EXPO_ROUTER_APP_ROOT,
-	true,
-	/^\.\/(?!(?:.*\+api|\+html)\.[tj]sx?$).*\.[tj]sx?$/,
-	process.env.EXPO_ROUTER_IMPORT_MODE ?? "sync",
+	process.env.EXPO_ROUTER_APP_ROOT as string, // Caminho para o diretório de rotas
+	true, // Recursivamente busca por arquivos
+	/^\.\/(?!.*@)(?!.*\+(?:api|html)\.[tj]sx?$).*\.[tj]sx?$/,	// RegExp especial que ignora arquivos com @ e +api ou +html
+	(process.env.EXPO_ROUTER_IMPORT_MODE as any) ?? "sync", // Modo de importação, pode ser "sync" ou "lazy"
 );
 ```
 
-And now we create our root component:
+Ao analisar o bundle da aplicação após executar `npx react-native bundle --platform ios --entry-file src/index.ts --dev false`, você verá que o Re.Pack irá gerar um objeto `context` que contém todas as rotas e layouts. Isso é feito de forma AOT (Ahead Of Time), ou seja, as importações são resolvidas no momento da build, melhorando a performance da aplicação.
 
 ```tsx twoslash
-// @filename: context.ts
-export const context: any = "";
-// @filename: Application.tsx
+// @moduleResolution: bundler
+// @filename: ./src/screens/index.tsx
+import { View } from "react-native";
+
+export default function Index() {
+	return <View />
+}
+// @filename: ./src/screens/_layout.tsx
+import { View } from "react-native";
+
+export default function Layout() {
+	return <View />
+}
+// @filename: ./src/context.ts
 // ---cut-before---
-// @jsx: react-jsx
-import { ExpoRoot } from "expo-router";
+// src/context.ts
+import src_screens_index from "./screens/index.tsx";
+import src_screens__layout from "./screens/_layout.tsx";
 
-import { context } from "./context";
-
-export function Application() {
-	return <ExpoRoot context={context as any} /> 
+export const context = {
+	"./index.tsx": () => src_screens_index,
+	"./_layout.tsx": () => src_screens__layout,
 }
 ```
 
-Now we have a fully integrated `expo-router` with `@callstack/repack`!
+Tudo pronto, agora podemos executar o Re.Pack e ver se tudo está funcionando corretamente.
 
-## Conclusion
+## Fluxo de desenvolvimento e build
 
-In this article, I showed how to integrate `@callstack/repack` with `expo` and `expo-router`. I hope this article helps you to make your React Native development more enjoyable. Keep in mind that this solution is not perfect and may have some issues, but it's a good starting point.
+Para iniciar o servidor de desenvolvimento do Re.Pack:
+
+<PackageManager commands={[{ arguments: ["start"], keyword: "react-native" }]} />
+
+Para gerar as pastas nativas do Android e iOS e instalar os aplicativos no emulador/dispositivo:
+
+<PackageManager 
+	commands={[
+		{ arguments: ["prebuild"], keyword: "expo" },
+		{ arguments: ["run-android"], keyword: "react-native" },
+		{ arguments: ["run-ios"], keyword: "react-native" },
+	]} 
+/>
+
+Para gerar o bundle de produção:
+
+<PackageManager 
+	commands={[
+		{ arguments: ["bundle", "--entry-file", "src/index.ts", "--platform", "android", "--dev", "false", "# Android"], keyword: "react-native" },
+		{ arguments: ["bundle", "--entry-file", "src/index.ts", "--platform", "ios", "--dev", "false", "# iOS"], keyword: "react-native" },
+	]} 
+/>
+
+## Bonus
+
+Com essas mudanças, você pode utilizar alguns mecanismos indisponíveis no Metro. A seguir algumas dicas de como você pode aproveitar o Re.Pack.
+
+### Módulos virtuais
+
+Rspack tem suporte a módulos virtuais, que permitem que você crie módulos que não existem no sistema de arquivos, mas que podem ser importados como se fossem módulos normais. Isso é útil para criar módulos que são gerados dinamicamente ou que são utilizados apenas em tempo de desenvolvimento. Um bom exemplo disso é o plugin [unplugin-icons](https://github.com/unplugin/unplugin-icons), que permite que você importe ícones SVG de forma dinâmica e otimizada de uma vasta gama de bibliotecas de ícones.
+
+Veja como eu criei um compiler para React Native que permite importar ícones SVG de forma dinâmica e otimizada (utilizando o `react-native-svg`):
+
+```js
+// rspack.config.mjs
+import Icons from "unplugin-icons/rspack";
+import { camelize } from "@iconify/utils/lib/misc/strings";
+
+export default () => ({
+	// ... outras configurações do Rspack/Re.Pack
+	plugins: [
+		Icons({
+			compiler: {
+				compiler: async (svg, collection, icon) => {
+					const { transform } = await import("@svgr/core");
+					const componentName = camelize(`${collection}-${icon}`);
+
+					const res = await transform(svg, {
+						ref: false,
+						native: true,
+						plugins: ["@svgr/plugin-jsx"],
+						jsxRuntime: "automatic",
+					}, { componentName });
+
+					return res;
+				},
+				extension: "jsx",
+			},
+		}),
+	]
+})
+```
+
+Agora ao instalar qualquer coleção de ícones, como por exemplo `@iconify-json/mdi`, você pode importar os ícones SVG diretamente no seu código React Native:
+
+```tsx twoslash
+// @moduleResolution: bundler
+// @filename: ./environment.d.ts
+declare module "virtual:icons/mdi/*" {
+	const Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+	export default Icon;
+}
+// @filename: ./src/screens/index.tsx
+// ---cut-before---
+// src/screens/index.tsx
+import { View } from "react-native";
+import Account from "virtual:icons/mdi/account";
+
+export default function Index() {
+	return (
+		<View>
+			<Account width={24} height={24} />
+		</View>
+	);
+}
+```
+
+### Loaders personalizados
+
+Rspack permite que você utilize loaders personalizados para transformar arquivos antes de serem processados pelo bundler. Um bom exemplo disso é a integração com o [lingui](https://lingui.dev/ref/loader), um framework de internacionalização para JavaScript que permite escrever traduções em arquivos `.po` e `.json`, e carregá-las dinamicamente no seu aplicativo.
+
+### Análise de bundle
+
+Rspack também possui suporte a plugins de análise de build, como o [@rsdoctor/rspack-plugin](https://rsdoctor.rs/). Um poderoso analisador de bundle que permite visualizar o tamanho dos módulos, dependências e outros detalhes do seu bundle.
+
+## Conclusão
+
+Com isso, você tem um projeto React Native configurado para usar o Re.Pack como bundler, mantendo a integração com o Expo Router. Essa configuração permite que você aproveite os benefícios do Re.Pack, como builds mais rápidos e suporte a recursos avançados, enquanto ainda utiliza as funcionalidades do Expo e principalmente o Expo Router e o Expo CNG.

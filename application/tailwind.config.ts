@@ -6,7 +6,8 @@ import { themeFromSourceColor } from "mcu-extra";
 import defaultTheme from "tailwindcss/defaultTheme";
 
 function createThemeFromBaseColor(baseColor: string) {
-	if (!baseColor.startsWith("#")) throw new Error("baseColor must be a hex color string");
+	if (!baseColor.startsWith("#"))
+		throw new Error("baseColor must be a hex color string");
 
 	const { schemes } = themeFromSourceColor(argbFromHex(baseColor));
 	const colors: Map<string, string> = new Map();

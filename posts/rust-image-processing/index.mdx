@@ -3,10 +3,14 @@ title: "Using Rust for intensive processing in JavaScript applications"
 description: "Learn how to leverage Rust for high-performance image processing in JavaScript applications using NAPI-RS"
 date: "2025-04-02"
 color: "#E45928"
-cover: "./images/cover.jpg"
-coverAlt: "Rusty car panel"
+cover: 
+  src: "./images/cover.jpg"
+  alt: "Rusty car panel"
+  url: "https://unsplash.com/photos/a-close-up-of-a-car-steering-wheel-JvvMFFGl6FY"
 draft: false
 ---
+
+import FileTree from '~/components/file-tree.astro';
 
 JavaScript is a great language for various tasks, offering a rich ecosystem, excellent DX, and satisfactory performance for most applications. However, there are cases where we need superior performance, such as in image processing tasks, data manipulation, or intensive mathematical calculations. In these cases, we can turn to Rust, a programming language known for its safety and performance.
 
@@ -39,15 +43,25 @@ bunx @napi-rs/cli new
 
 This will create a new folder with the project name, containing the following structure:
 
-```
-├── .cargo
-│   └── config.toml
-├── src
-│   └── lib.rs
-├── Cargo.toml
-├── build.rs
-├── package.json
-```
+<FileTree
+	tree={[
+		{	
+			name: ".cargo", 
+			children: [
+				{ name: "config.toml", comment: "cargo configuration file" }
+			]
+		},
+		{
+			name: "src",
+			children: [
+				{ name: "lib.rs", comment: "rust source code file" }
+			]
+		},
+		{ name: "Cargo.toml", comment: "cargo configuration file" },
+		{ name: "build.rs", comment: "build script for rust" },
+		{ name: "package.json", comment: "NPM package configuration file" },
+	]}
+/>
 
 I chose not to use GitHub Actions and also removed the `npm` folder since I will not be publishing the package to NPM. The Rust code will reside in the `src/lib.rs` folder, and the `Cargo.toml` file will contain the necessary dependencies. The `build.rs` file is responsible for compiling the Rust code and generating the bindings for Node.js.
 

@@ -1,4 +1,6 @@
 /* eslint-disable style/max-len */
+import { resolve } from "node:path";
+
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import tailwind from "@astrojs/tailwind";
@@ -8,6 +10,7 @@ import { defineConfig } from "astro/config";
 import { FontaineTransform } from "fontaine";
 import { toString } from "mdast-util-to-string";
 import getReadingTime from "reading-time";
+import icons from "unplugin-icons/vite";
 
 const fonts = [
 	{ name: "lora", fallbacks: ["ui-sans-serif", "Helvetica Neue", "Arial", "sans-serif"] },
@@ -29,6 +32,7 @@ export default defineConfig({
 	site: "https://ceopaludetto.com",
 	prefetch: { prefetchAll: true },
 	markdown: { remarkPlugins: [remarkReadingTime] },
+	image: { domains: ["raw.githubusercontent.com", "unsplash.com"] },
 	integrations: [
 		mdx({
 			shikiConfig: {
@@ -45,11 +49,14 @@ export default defineConfig({
 		sitemap(),
 	],
 	vite: {
-		plugins: fonts.map(({ fallbacks, name }) =>
-			FontaineTransform.vite({
-				fallbacks,
-				resolvePath: (id) => `./node_modules/@fontsource/${name}/files/${id}.woff2`,
-			}),
-		),
+		plugins: [
+			...fonts.map(({ fallbacks, name }) =>
+				FontaineTransform.vite({
+					fallbacks,
+					resolvePath: (id) => resolve(`../node_modules/@fontsource/${name}/files/${id}.woff2`),
+				}),
+			),
+			icons({ compiler: "astro" }),
+		],
 	},
 });

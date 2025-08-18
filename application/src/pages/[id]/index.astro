@@ -5,6 +5,7 @@ import { getCollection, render } from "astro:content";
 import { formatDate } from "date-fns";
 
 import Blurhash from "~/components/blurhash.astro";
+import UnsplashButton from "~/components/unsplash-button.astro";
 import Base from "~/layouts/base.astro";
 import Post from "~/layouts/post.astro";
 import { collectDependenciesFromPost } from "~/utilities/dependencies";
@@ -47,21 +48,25 @@ const dependencies = await collectDependenciesFromPost(entry);
 		<p class="mb-8 mt-0 text-body-large text-on-surface-variant">
 			{formatDate(entry.data.date, "MMMM d, yyyy")} — {remarkPluginFrontmatter.minutesRead}
 		</p>
-		{entry.data.cover && (
+		{!!entry.data.cover && (
 			<Blurhash
+				loading="eager"
+				fetchpriority="high"
 				class="not-prose my-14 rounded-xl lg:-mx-24"
-				src={entry.data.cover}
-				alt={entry.data.coverAlt!}
+				src={entry.data.cover.src}
+				alt={entry.data.cover.alt}
 				layout="full-width"
-			/>
+			>
+				{!!entry.data.cover.url && <UnsplashButton href={entry.data.cover.url} slot="action" />}
+			</Blurhash>
 		)}
 		<Content />
 		{entry.data.showDependencyMap && dependencies.length > 0 && (
-			<h3>Dependency map</h3>
-			<div class="-mx-4 flex gap-x-3 overflow-x-auto px-4">
+			<h3>Dependencies</h3>
+			<div class="-mx-8 flex gap-x-1 overflow-x-auto [scrollbar-width:none] max-lg:px-8">
 				{dependencies.map(([dependency, version]) => (
 					// eslint-disable-next-line style/max-len
-					<span class="inline-flex h-8 items-center text-nowrap rounded-md bg-secondary-container px-2 font-mono text-label-large text-on-secondary-container">
+					<span class="inline-flex items-center text-nowrap rounded-md border border-surface-container bg-surface-container-lowest px-3 py-2 font-mono text-label-large text-on-surface-variant first:rounded-l-xl last:rounded-r-xl">
 						{dependency}@{version}
 					</span>
 				))}

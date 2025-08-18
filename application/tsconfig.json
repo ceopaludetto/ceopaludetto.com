@@ -1,6 +1,8 @@
 {
 	"extends": "@total-typescript/tsconfig/bundler/dom",
 	"compilerOptions": {
+		"lib": ["esnext", "dom", "dom.iterable"],
+
 		"baseUrl": ".",
 		"paths": {
 			"~/*": ["./src/*"]

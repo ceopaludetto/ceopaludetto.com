@@ -4,16 +4,16 @@ import "@shikijs/twoslash/style-rich.css";
 ---
 
 <main
-	class="prose mx-auto max-w-[80ch] px-4 py-8 prose-headings:font-serif prose-h1:text-display-small prose-h2:text-headline-medium prose-h3:text-headline-small prose-p:text-body-large prose-a:font-normal prose-a:decoration-primary/30 prose-a:decoration-wavy prose-a:underline-offset-2 hover:prose-a:decoration-primary prose-ul:pl-4 lg:px-8"
+	class="prose mx-auto max-w-[80ch] px-4 py-8 prose-headings:font-sans prose-h1:text-display-small prose-h2:text-headline-medium prose-h3:text-headline-small prose-p:text-body-large prose-a:font-normal prose-a:decoration-primary/30 prose-a:decoration-wavy prose-a:underline-offset-2 hover:prose-a:decoration-primary prose-ul:pl-4 lg:px-8"
 >
 	<slot />
 </main>
 
 <style is:global>
 	:root {
-		--astro-code-color-background: rgb(var(--surface-container-lowest) / 1);
-		--astro-code-color-text: rgb(var(--on-surface) / 1);
-		--astro-code-token-constant: rgb(var(--primary) / 1);
+		--astro-code-background: rgb(var(--surface-container-lowest) / 1);
+		--astro-code-foreground: rgb(var(--on-surface-variant) / 1);
+		--astro-code-token-constant: rgb(var(--on-surface) / 1);
 		--astro-code-token-string: rgb(var(--tertiary) / 1);
 		--astro-code-token-comment: rgb(var(--outline) / 1);
 		--astro-code-token-keyword: rgb(var(--primary) / 1);
@@ -56,13 +56,13 @@ import "@shikijs/twoslash/style-rich.css";
 	pre.astro-code {
 		counter-reset: line;
 		tab-size: 2;
-		@apply border border-surface-container-high lg:-mx-8;
+		@apply border rounded-xl border-surface-container lg:-mx-8;
 	}
 
 	pre.astro-code span.line::before {
 		counter-increment: line;
 		content: counter(line);
-		@apply inline-block text-on-surface-variant w-5 mr-3;
+		@apply inline-block text-right text-outline w-5 mr-3;
 	}
 
 	pre.astro-code span.line.highlighted {
