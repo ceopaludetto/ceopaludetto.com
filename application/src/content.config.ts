@@ -9,17 +9,14 @@ const postCollection = defineCollection({
 		description: z.string(),
 		date: z.string().transform<Date>((value) => parse(value, "yyyy-MM-dd", new Date())),
 		color: z.string(),
-		cover: image().optional(),
-		coverAlt: z.string().optional(),
+		cover: z.object({
+			src: image(),
+			alt: z.string(),
+			url: z.string().optional(),
+		}).optional(),
 		draft: z.boolean().default(true),
 		showDependencyMap: z.boolean().default(true),
-	})
-		.refine((value) => {
-			if (value.cover && !value.coverAlt)
-				return false;
-
-			return true;
-		}, { message: "If you provide a cover, you must also provide a coverAlt." }),
+	}),
 });
 
 export const collections = { posts: postCollection };

@@ -1,0 +1,26 @@
+---
+import Unsplash from "virtual:icons/simple-icons/unsplash";
+
+/// keep-sorted
+type Props = {
+	"aria-label"?: string;
+	"class"?: string | null;
+	"href": string;
+};
+
+const { href, class: className } = Astro.props;
+---
+
+<a
+	class:list={[
+		"group block rounded-lg bg-surface-container p-3 transition-[background-color,border-radius]",
+		"duration-300 active:rounded-[26px] active:bg-inverse-surface lg:p-4",
+		className,
+	]}
+	aria-label="View on Unsplash"
+	rel="noopener noreferrer nofollow"
+	target="_blank"
+	href={href}
+>
+	<Unsplash class="size-3 text-on-surface transition-colors group-active:text-inverse-primary lg:size-5" />
+</a>

@@ -60,3 +60,15 @@ const rss = `${canonical}/rss.xml`;
 		<Footer />
 	</body>
 </html>
+
+<style is:global>
+	@media (prefers-reduced-motion: no-preference) {
+		@view-transition {
+			navigation: auto;
+		}
+	}
+
+	::view-transition-group(*) {
+		animation-duration: 350ms;
+	}
+</style>

@@ -9,7 +9,7 @@ import { getImageBuffer, imageToBlurhash } from "~/utilities/image";
 
 type Props = LocalImageProps;
 
-const { class: cls, ...props } = Astro.props;
+const { class: className, ...props } = Astro.props;
 
 if (!props.src)
 	throw new Error("Blurhash component requires a 'src' prop.");
@@ -20,21 +20,28 @@ const blurhash = await imageToBlurhash(buffer);
 const base64 = blurhashToBase64(blurhash);
 ---
 
-<div data-blurhash-container="true" class="relative overflow-hidden" class:list={cls ?? ""}>
+<div data-blurhash-container="true" class="relative aspect-video overflow-hidden" class:list={className ?? ""}>
 	<img
 		data-blurhash="true"
 		src={base64}
 		aria-hidden="true"
+		alt={props.alt}
 		class="absolute inset-0 !m-0 size-full transition-opacity duration-500"
 	/>
 	<Image {...props} />
+	{Astro.slots.has("action") && (
+		<div class="absolute bottom-4 right-4">
+			<slot name="action" />
+		</div>
+	)}
 </div>
 
 <!-- Replace blurhash image with original one -->
 <script>
 	function onLoad(this: HTMLImageElement) {
 		const placeholder = this.previousElementSibling as HTMLImageElement;
-		if (placeholder && placeholder.dataset.blurhash === "true") placeholder.style.opacity = "0";
+		if (placeholder && placeholder.dataset.blurhash === "true")
+			placeholder.style.opacity = "0";
 
 		this.removeEventListener("load", onLoad);
 	}

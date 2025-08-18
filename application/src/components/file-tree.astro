@@ -1,0 +1,87 @@
+---
+import { extname } from "node:path";
+
+import { Image } from "astro:assets";
+
+import { beardedIconBaseURL } from "~/utilities/constants";
+
+type TreeNode = {
+	name: string;
+	comment?: string;
+	children?: TreeNode[];
+};
+
+export type Props = {
+	tree: TreeNode[];
+	root?: boolean;
+};
+
+const iconMap: Record<string, string> = {
+	// Common file extensions
+	".js": "js",
+	".mjs": "js",
+	".rs": "rust",
+	".toml": "toml",
+	".ts": "typescript",
+	".tsx": "reactts",
+
+	// Directories
+	"dir": "folder",
+
+	// Specific files
+	"Cargo.toml": "cargo",
+	"package.json": "npm",
+	"tsconfig.json": "tsconfig",
+};
+
+function getIconFromGitHub(item: TreeNode) {
+	if (item.children)
+		return `${beardedIconBaseURL}/folder.svg`;
+
+	if (iconMap[item.name])
+		return `${beardedIconBaseURL}/${iconMap[item.name]}.svg`;
+
+	const ext = extname(item.name);
+	const name = iconMap[ext] ?? "file";
+
+	return `${beardedIconBaseURL}/${name}.svg`;
+}
+
+function getAltText(item: TreeNode) {
+	if (item.children)
+		return "Folder icon";
+
+	const ext = extname(item.name);
+	return `${ext} file icon`;
+}
+
+const { tree, root = true } = Astro.props;
+
+// Follow same sorting logic as in VSCode
+const sortedTree = tree.toSorted((a, b) => {
+	if (a.children && !b.children) return -1;
+	if (!a.children && b.children) return 1;
+
+	return a.name.localeCompare(b.name);
+});
+
+const classes = !root
+	? ["ml-[7.5px] border-l border-outline-variant pl-3"]
+	: [
+			"not-prose rounded-xl border border-surface-container overflow-x-auto bg-surface-container-lowest",
+			"px-4 py-3 lg:-mx-8",
+		];
+---
+
+<div class:list={classes}>
+	{sortedTree.map((item) => (
+		<div class="flex items-center gap-1.5">
+			<Image format="svg" src={getIconFromGitHub(item)} alt={getAltText(item)} width={16} height={16} />
+			<span class="font-mono text-body-medium leading-[1.7142857]">
+				{item.name}
+				{item.comment && <span class="text-outline"># {item.comment}</span>}
+			</span>
+		</div>
+		<Fragment>{item.children && <Astro.self root={false} tree={item.children} />}</Fragment>
+	))}
+</div>
