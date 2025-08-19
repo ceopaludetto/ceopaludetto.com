@@ -1,6 +1,5 @@
-import { argbFromHex, rgbaFromArgb } from "@material/material-color-utilities";
+import { argbFromHex, Hct, rgbaFromArgb, SchemeFidelity } from "@material/material-color-utilities";
 import { transform } from "lightningcss";
-import { themeFromSourceColor } from "mcu-extra";
 
 type ColorScheme = "dark" | "light";
 
@@ -9,19 +8,75 @@ function toRGBString(value: number) {
 	return [r, g, b].join(" ");
 }
 
+/// keep-sorted
+export const allColors = [
+	"background",
+	"error",
+	"errorContainer",
+	"inverseOnSurface",
+	"inversePrimary",
+	"inverseSurface",
+	"onBackground",
+	"onError",
+	"onErrorContainer",
+	"onPrimary",
+	"onPrimaryContainer",
+	"onPrimaryFixed",
+	"onPrimaryFixedVariant",
+	"onSecondary",
+	"onSecondaryContainer",
+	"onSecondaryFixed",
+	"onSecondaryFixedVariant",
+	"onSurface",
+	"onSurfaceVariant",
+	"onTertiary",
+	"onTertiaryContainer",
+	"onTertiaryFixed",
+	"onTertiaryFixedVariant",
+	"outline",
+	"outlineVariant",
+	"primary",
+	"primaryContainer",
+	"primaryFixed",
+	"primaryFixedDim",
+	"scrim",
+	"secondary",
+	"secondaryContainer",
+	"secondaryFixed",
+	"secondaryFixedDim",
+	"shadow",
+	"surface",
+	"surfaceBright",
+	"surfaceContainer",
+	"surfaceContainerHigh",
+	"surfaceContainerHighest",
+	"surfaceContainerLow",
+	"surfaceContainerLowest",
+	"surfaceDim",
+	"surfaceTint",
+	"surfaceVariant",
+	"tertiary",
+	"tertiaryContainer",
+	"tertiaryFixed",
+	"tertiaryFixedDim",
+] as const;
+
 export function createThemeFromBaseColor(baseColor: string) {
 	if (!baseColor.startsWith("#")) throw new Error("baseColor must be a hex color string");
 
-	const { schemes } = themeFromSourceColor(argbFromHex(baseColor));
+	const schemes = {
+		light: new SchemeFidelity(Hct.fromInt(argbFromHex(baseColor)), false, 0),
+		dark: new SchemeFidelity(Hct.fromInt(argbFromHex(baseColor)), true, 0),
+	};
 
 	const variables: Record<ColorScheme, Record<string, string>> = { dark: {}, light: {} };
 
 	for (const [scheme, entries] of Object.entries(schemes)) {
-		for (const [name, value] of Object.entries(entries)) {
+		for (const name of allColors) {
 			const kebabName = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 			const variableName = `--${kebabName}`;
 
-			variables[scheme as ColorScheme][variableName] = toRGBString(value);
+			variables[scheme as ColorScheme][variableName] = toRGBString(entries[name]);
 		}
 	}
 

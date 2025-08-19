@@ -1,24 +1,20 @@
 import type { Config } from "tailwindcss";
 
-import { argbFromHex } from "@material/material-color-utilities";
 import typography from "@tailwindcss/typography";
-import { themeFromSourceColor } from "mcu-extra";
 import defaultTheme from "tailwindcss/defaultTheme";
+
+import { allColors } from "./src/utilities/theme";
 
 function createThemeFromBaseColor(baseColor: string) {
 	if (!baseColor.startsWith("#"))
 		throw new Error("baseColor must be a hex color string");
 
-	const { schemes } = themeFromSourceColor(argbFromHex(baseColor));
 	const colors: Map<string, string> = new Map();
+	for (const name of allColors) {
+		const kebabName = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+		const variableName = `--${kebabName}`;
 
-	for (const entries of Object.values(schemes)) {
-		for (const name of Object.keys(entries)) {
-			const kebabName = name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
-			const variableName = `--${kebabName}`;
-
-			colors.set(kebabName, `rgb(var(${variableName}) / <alpha-value>)`);
-		}
+		colors.set(kebabName, `rgb(var(${variableName}) / <alpha-value>)`);
 	}
 
 	return Object.fromEntries(colors);
