@@ -41,13 +41,11 @@
         "date-fns": "^4.1.0",
         "fontaine": "^0.6.0",
         "lightningcss": "^1.30.1",
-        "mcu-extra": "^0.1.1",
         "mdast-util-to-string": "^4.0.0",
         "reading-time": "^1.5.0",
         "tailwindcss": "^3.4.14",
       },
       "devDependencies": {
-        "@iconify-json/logos": "^1.2.9",
         "@iconify-json/simple-icons": "^1.2.48",
         "unplugin-icons": "^22.2.0",
       },
@@ -588,8 +586,6 @@
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.2", "", {}, "sha512-xeO57FpIu4p1Ri3Jq/EXq4ClRm86dVF2z/+kvFnyqVYRavTZmaFaUBbWCOuuTh0o/g7DSsk6kc2vrS4Vl5oPOQ=="],
-
-    "@iconify-json/logos": ["@iconify-json/logos@1.2.9", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-G6VCdFnwZcrT6Eveq3m43oJfLw/CX8plwFcE+2jgv3fiGB64pTmnU7Yd1MNZ/eA+/Re2iEDhuCfSNOWTHwwK8w=="],
 
     "@iconify-json/simple-icons": ["@iconify-json/simple-icons@1.2.48", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-EACOtZMoPJtERiAbX1De0asrrCtlwI27+03c9OJlYWsly9w1O5vcD8rTzh+kDPjo+K8FOVnq2Qy+h/CzljSKDA=="],
 
@@ -2004,8 +2000,6 @@
     "markdown-table": ["markdown-table@3.0.4", "", {}, "sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw=="],
 
     "marky": ["marky@1.2.5", "", {}, "sha512-q9JtQJKjpsVxCRVgQ+WapguSbKC3SQ5HEzFGPAJMStgh3QjCawp00UKv3MTTAArTmGmmPUvllHZoNbZ3gs0I+Q=="],
-
-    "mcu-extra": ["mcu-extra@0.1.1", "", { "peerDependencies": { "@material/material-color-utilities": "^0.2.7" } }, "sha512-evL8dYMOYXa1Y9JIzlYlgSVOXbxFGWfdvS9He7wL6lXrGvpZzxzy5xi1COzJFuUSzU4hNiM2VpqhI0eZaAC4DQ=="],
 
     "mdast-util-definitions": ["mdast-util-definitions@6.0.0", "", { "dependencies": { "@types/mdast": "^4.0.0", "@types/unist": "^3.0.0", "unist-util-visit": "^5.0.0" } }, "sha512-scTllyX6pnYNZH/AIp/0ePz6s4cZtARxImwoPJ7kS42n+MnVsI4XbnG6d4ibehRIldYMWM2LD7ImQblVhUejVQ=="],
 
