@@ -77,7 +77,7 @@ const classes = !root
 	{sortedTree.map((item) => (
 		<div class="flex items-center gap-1.5">
 			<Image format="svg" src={getIconFromGitHub(item)} alt={getAltText(item)} width={16} height={16} />
-			<span class="font-mono text-body-medium leading-[1.7142857]">
+			<span class="whitespace-nowrap font-mono text-body-medium leading-[1.7142857]">
 				{item.name}
 				{item.comment && <span class="text-outline"># {item.comment}</span>}
 			</span>
