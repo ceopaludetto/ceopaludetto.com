@@ -13,6 +13,8 @@ draft: false
 import FileTree from "~/components/file-tree.astro"
 import PackageManager from "~/components/package-manager.astro"
 
+TLDR: [ceopaludetto/expo-router-repack-template](https://github.com/ceopaludetto/expo-router-repack-template)
+
 I recently started building a React Native app and came across the possibility of using a bundler that was faster and more efficient than Metro, especially for larger projects. I'm referring to [Re.Pack](https://re-pack.dev/), an alternative bundler based on [Rspack](https://rspack.rs/) that promises significant improvements to build and reload performance.
 
 Besides being faster, Re.Pack also offers a range of interesting features, such as [Module Federation](https://module-federation.io/), Virtual Modules, advanced Tree Shaking, and the ability to use plugins from the Rspack/Webpack ecosystem.
@@ -49,10 +51,10 @@ By the end of this guide, you'll have a project structure similar to this:
 		{
 			name: "plugins",
 			children: [
-				{ name: "expo-repack-plugin.ts", comment: "expo configuration plugin for re-pack"},
+				{ name: "expo-repack-plugin.js", comment: "expo configuration plugin for re-pack"},
 			],
 		},
-		{ name: "app.config.ts", comment: "expo CNG configuration file" },
+		{ name: "app.json", comment: "expo CNG configuration file" },
 		{ name: "react-native.config.js", comment: "react native CLI configuration file" },
 		{ name: "rspack.config.mjs", comment: "rspack configuration file" },
 		{ name: "package.json" },
@@ -71,26 +73,24 @@ We'll create a new Expo project from scratch and install the required dependenci
 	]} 
 />
 
-Now we'll create the `app.config.ts` file at the project root. This file is required for [Continuous Native Generation (CNG)](https://docs.expo.dev/workflow/continuous-native-generation/), an Expo feature that lets you configure the native Android and iOS projects using a TypeScript config file.
+Now we'll create the `app.json` file at the project root. This file is required for [Continuous Native Generation (CNG)](https://docs.expo.dev/workflow/continuous-native-generation/), an Expo feature that lets you configure the native Android and iOS projects using a TypeScript config file.
 
-```ts twoslash
-// @moduleResolution: bundler
-// app.config.ts
-import type { ExpoConfig } from "expo/config";
-
-export default {
-	name: "YourApplicationName",
-	slug: "your-application-slug",
-	android: {
-		package: "com.yourcompany.yourapp",
+```jsonc
+// app.json
+{
+	"name": "YourApplicationName",
+	"slug": "your-application-slug",
+	"scheme": "yourapplicationscheme", // Optional, but recommended for deep linking
+	"android": {
+		"package": "com.yourcompany.yourapp",
 	},
-	ios: {
-		bundleIdentifier: "com.yourcompany.yourapp",
+	"ios": {
+		"bundleIdentifier": "com.yourcompany.yourapp",
 	},
-	plugins: [
+	"plugins": [
 		["expo-router", { root: "./src/screens" }] // Adjust the path as needed
 	]
-} satisfies ExpoConfig;
+}
 ```
 
 When running `npx expo prebuild`, Expo will generate the native Android and iOS projects based on your configuration. However, if you try to run a production build, Expo will use its own CLI and Metro as the bundler, which is not what we want. We need to remove those settings to ensure Re.Pack is used instead.
@@ -103,12 +103,9 @@ On Android, this is in `./android/app/build.gradle`, and on iOS, in Xcode's cust
 
 While you can do this manually, every time you run `npx expo prebuild`, those settings will be overwritten. Therefore, we'll automate this using a [configuration plugin](https://docs.expo.dev/config-plugins/introduction/). I recommend moving this plugin to a separate package, but for simplicity, we'll keep it in the same project.
 
-```ts twoslash
-// @moduleResolution: bundler
-// plugins/expo-repack-plugin.ts
-import type { ConfigPlugin } from "expo/config-plugins";
-
-import { withAppBuildGradle, withXcodeProject } from "expo/config-plugins";
+```js twoslash
+// plugins/expo-repack-plugin.js
+const { withAppBuildGradle, withXcodeProject } = require("expo/config-plugins");
 
 /**
  * Configuration plugin to remove some expo defaults to ensure that re-pack works correctly.
@@ -116,7 +113,7 @@ import { withAppBuildGradle, withXcodeProject } from "expo/config-plugins";
  * @param current Current expo configuration
  * @returns Modified expo configuration
  */
-export const withExpoRepackPlugin: ConfigPlugin = (current) => {
+module.exports = (current) => {
 	let res = current;
 
 	// iOS
@@ -154,69 +151,25 @@ export const withExpoRepackPlugin: ConfigPlugin = (current) => {
 };
 ```
 
-Now we need to add this plugin to our `app.config.ts`:
+Now we need to add this plugin to our `app.json`:
 
-```ts twoslash
-// @moduleResolution: bundler
-// @filename: ./plugins/expo-repack-plugin.ts
-import type { ConfigPlugin } from "expo/config-plugins";
-
-import { withAppBuildGradle, withXcodeProject } from "expo/config-plugins";
-
-/**
- * Configuration plugin to remove some expo defaults to ensure that re-pack works correctly.
- *
- * @param current Current expo configuration
- * @returns Modified expo configuration
- */
-export const withExpoRepackPlugin: ConfigPlugin = (current) => {
-	let res = current;
-
-	// iOS
-	// Replace $CLI_PATH and $BUNDLE_COMMAND in the Xcode project (this will ensure that the correct CLI is used in production builds)
-	res = withXcodeProject(res, (configuration) => {
-		const xcodeProject = configuration.modResults;
-		const bundleReactNativeCodeAndImagesBuildPhase = xcodeProject.buildPhaseObject(
-			"PBXShellScriptBuildPhase",
-			"Bundle React Native code and images",
-		);
-
-		if (!bundleReactNativeCodeAndImagesBuildPhase)
-			return configuration;
-
-		const script = JSON.parse(bundleReactNativeCodeAndImagesBuildPhase.shellScript);
-		const patched = script
-			.replace(/if \[\[ -z "\$CLI_PATH" \]\]; then[\s\S]*?fi\n?/g, `export CLI_PATH="$("$NODE_BINARY" --print "require('path').dirname(require.resolve('@react-native-community/cli/package.json')) + '/build/bin.js'")"`)
-			.replace(/if \[\[ -z "\$BUNDLE_COMMAND" \]\]; then[\s\S]*?fi\n?/g, "");
-
-		bundleReactNativeCodeAndImagesBuildPhase.shellScript = JSON.stringify(patched);
-		return configuration;
-	});
-
-	// Android
-	// Replace cliFile and bundleCommand in the app/build.gradle file (this will ensure that the correct CLI is used in production builds)
-	res = withAppBuildGradle(res, (configuration) => {
-		const buildGradle = configuration.modResults.contents;
-		const patched = buildGradle.replace(/cliFile.*/, "").replace(/bundleCommand.*/, "bundleCommand = \"bundle\"");
-
-		configuration.modResults.contents = patched;
-		return configuration;
-	});
-
-	return res;
-};
-// @filename: ./app.config.ts
-// ---cut-before---
-// app.config.ts
-import type { ExpoConfig } from "expo/config";
-import { withExpoRepackPlugin } from "./plugins/expo-repack-plugin";
-
-export default {
-	plugins: [
-		["expo-router", { root: "./src/screens" }],
-		withExpoRepackPlugin,
+```jsonc
+// app.json
+{
+	"name": "YourApplicationName",
+	"slug": "your-application-slug",
+	"scheme": "yourapplicationscheme",
+	"android": {
+		"package": "com.yourcompany.yourapp",
+	},
+	"ios": {
+		"bundleIdentifier": "com.yourcompany.yourapp",
+	},
+	"plugins": [
+		["expo-router", { root: "./src/screens" }] // Adjust the path as needed
+		"./plugins/expo-repack-plugin" // Add the Re.Pack plugin
 	]
-} satisfies ExpoConfig;
+}
 ```
 
 After re-running `npx expo prebuild`, Expo will generate the native Android and iOS projects without the CLI settings, allowing Re.Pack to be used correctly for production builds.
@@ -306,12 +259,17 @@ module.exports = {
 
 ## Setting up the React Native entrypoint
 
-Update `package.json` to include the app entrypoint. This value is used automatically by both Re.Pack and the React Native CLI:
+Update `package.json` to include the application entrypoint and scripts. This value is used automatically by both Re.Pack and the React Native CLI:
 
 ```jsonc
 // package.json
 {
 	"main": "src/index.ts",
+	"scripts": {
+		"start": "react-native start --reset-cache",
+		"android": "react-native run-android --no-packager",
+		"ios": "react-native run-ios --no-packager",
+	},
 	// ...
 }
 ```
@@ -431,15 +389,15 @@ All set, so we can now run Re.Pack and verify that everything works as expected.
 
 To start Re.Pack's development server:
 
-<PackageManager commands={[{ arguments: ["start"], keyword: "react-native" }]} />
+<PackageManager commands={[{ arguments: ["start", "--reset-cache"], keyword: "react-native" }]} />
 
 To generate the native Android and iOS folders and install the apps on an emulator/device:
 
 <PackageManager 
 	commands={[
 		{ arguments: ["prebuild"], keyword: "expo" },
-		{ arguments: ["run-android"], keyword: "react-native" },
-		{ arguments: ["run-ios"], keyword: "react-native" },
+		{ arguments: ["run-android", "--no-packager"], keyword: "react-native" },
+		{ arguments: ["run-ios", "--no-packager"], keyword: "react-native" },
 	]} 
 />
 
